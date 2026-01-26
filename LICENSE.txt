@@ -1,1 +1,6 @@
-
+License Agreement
+<br>
+<br>This work is the intellectual property of the Michigan State SWL Project Team which includes Vibu Darshan, Kyle Landolt, Mason Lee, and Will McNeilly. This project was developed with the support of the MSU Center for Community & Economic Development. 
+<br>
+<br>This software is licensed under CC BY-SA 4.0 and the use of this software is governed by the terms and conditions outlined in the license found here https://creativecommons.org/licenses/by-sa/4.0/
+<br>By using or adapting this software you agree to follow the terms of this license.
