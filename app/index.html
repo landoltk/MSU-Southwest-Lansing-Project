@@ -36,12 +36,8 @@
     <h1>SWLP Prototype</h1>
     <div id="map"></div>
 
-    <div class="panel">
-        <div><b>Source files</b></div>
-        <div class="muted" style="margin:6px 0 10px;">
-        GeoJSON: <code id="gj-url"></code><br/>
-        Allowed <code>NAME</code> list: <code id="csv-url"></code>
-        </div>
+    <!--Need to add block selection to panel-->
+    <div class="panel"> 
         <button id="reload" class="btn">Reload list</button>
         <div id="status" class="muted" style="margin-top:8px;"></div>
     </div>
@@ -118,15 +114,14 @@
                             'line-width': 1
                         }
                     });
-                    //On Click Action TODO
-                    
+                    //TODO Pull and show data on click
+                    //Show basic polygon info on click
                     map.on('mouseenter', 'bg-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
                     map.on('mouseleave', 'bg-fill', () => { map.getCanvas().style.cursor = ''; });
 
                     map.on('click', 'bg-fill', (e) => {
                     if (!e.features?.length) return;
 
-                    // In case multiple features are under the cursor, take the topmost
                     const feature = e.features[0];
                     const p = feature.properties || {};
 
@@ -144,7 +139,7 @@
                     });
 
                 }
-                console.log(filtered)
+
                 const hadFeatures = fitToGeoJSON(filtered);
                 if (!hadFeatures) {
                     setStatus('No features matched the requested Block Group list.');
