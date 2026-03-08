@@ -16,3 +16,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 @app.get("/")
 def index():
     return FileResponse("index.html")
+
+#callback get
+@app.get("/callback.html")
+def callback():
+    return FileResponse("callback.html")

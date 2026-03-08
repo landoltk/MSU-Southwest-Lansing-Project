@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>OAuth Callback</title></head>
+<body>
+https://unpkg.com/@esri/arcgis-rest-request@^4/dist/bundled/arcgis-rest-request.umd.min.js</script>
+<script>
+    // Completes the PKCE exchange and returns to index
+    arcgisRest.ArcGISIdentityManager.completeOAuth2({
+        clientId: "X2bp68ntiEFGIOsd",
+        redirectUri: "https://msu-southwest-lansing-project.onrender.com/",
+        portal: "https://www.arcgis.com/sharing/rest"
+    });
+</script>
+</body>
+</html>
