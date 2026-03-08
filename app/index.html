@@ -3,118 +3,150 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>SWLP Prototype Map</title>
+
+    <!-- MapLibre CSS -->
     <link
         href="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.css"
         rel="stylesheet"
     />
-    
+
     <style>
         html, body { height: 100%; margin: 0; }
         #map { height: 100%; width: 100%; }
-
-        .panel {
-        position: absolute; z-index: 2; top: 100px; left: 12px;
-        background: #fff; padding: 10px 12px; border-radius: 8px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        max-width: 360px;
-        }
-        .panel code { background: #f1f5f9; padding: 0 4px; border-radius: 4px; }
-        .btn {
-        display: inline-block; padding: 6px 10px; border-radius: 6px;
-        background: #2563eb; color: #fff; border: none; cursor: pointer;
-        font: inherit;
-        }
-        .btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .muted { color: #475569; }
     </style>
 
-    <title>SWLP Prototype Map</title>
     <link rel="stylesheet" href="static/style.css" />
 </head>
+
 <body>
     <h1>SWLP Prototype</h1>
     <div id="map"></div>
 
-    <!--Need to add block selection to panel-->
-    <div class="panel"> 
-        <button id="reload" class="btn">Reload list</button>
-        <div id="status" class="muted" style="margin-top:8px;"></div>
-    </div>
-
-    <!--ArcGIS Section-->
-    <script src="https://unpkg.com/@esri/maplibre-arcgis@1.1.0/dist/umd/maplibre-arcgis.min.js"></script>
-    <script src="https://unpkg.com/@esri/arcgis-rest-request@^4/dist/bundled/arcgis-rest-request.umd.min.js"></script>
-
-    <!--MapLibre Section-->
+    <!-- MapLibre JS -->
     <script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
-    <div id="map"></div>
-    <script>
-        const clientId = "X2bp68ntiEFGIOsd";
-        const redirectUri = "https://msu-southwest-lansing-project.onrender.com/callback.html";
-        const portalUrl = "https://www.arcgis.com/sharing/rest";
 
-        async function getSession() {
-        // Returns an ArcGISIdentityManager
-        // If not signed in, will redirect to ArcGIS to complete PKCE
-            return arcgisRest.ArcGISIdentityManager.beginOAuth2({
-                clientId,
-                redirectUri,
-                portal: portalUrl
-            });
+    <!-- MapLibre–ArcGIS plugin -->
+    <script src="https://unpkg.com/@esri/maplibre-arcgis@1.1.0/dist/umd/maplibre-arcgis.min.js"></script>
+
+    <!-- ArcGIS REST JS -->
+    <script src="https://unpkg.com/@esri/arcgis-rest-request@^4/dist/bundled/request.umd.min.js"></script>
+
+    <script>
+        const CONFIG = {
+            GEOJSON_URL: 'data/2010_Block_Groups.geojson',
+            NAMES_TXT_URL: 'data/requested_bg.txt',
+            COLOR_FILL: '#34d399',
+            COLOR_OUTLINE: '#065f46'
+        };
+
+        // ArcGIS OAuth/portal config
+        const clientId   = "X2bp68ntiEFGIOsd";
+        const portalUrl  = "https://www.arcgis.com/sharing/rest";
+        const redirectUri = "https://msu-southwest-lansing-project.onrender.com/callback.html";
+
+        // Hosted FeatureLayer URL
+        const blocksURL = "https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0";
+
+        const statusEl  = document.getElementById("status");
+        const signoutEl = document.getElementById("signout");
+        function setStatus(msg) { statusEl.textContent = msg; }
+
+        // OAuth session management
+        function restoreSession() {
+            const saved = localStorage.getItem("__ARCGIS_OAUTH__");
+            if (!saved) return null;
+            try { return arcgisRest.ArcGISIdentityManager.deserialize(saved); }
+            catch { return null; }
         }
 
+        async function ensureSession() {
+            const restored = restoreSession();
+            if (restored) return restored;
 
+            // Start PKCE sign-in, should return to root
+            arcgisRest.ArcGISIdentityManager.beginOAuth2({
+                clientId,
+                redirectUri,
+                portal: portalUrl,
+                popup: false
+            });
+
+            return new Promise(() => {}); // unreachable
+        }
+
+        // Map + layer pull
         (async () => {
-            // Acquire a live session (or resume one after callback)
-            const session = await getSession();
+            try {
+                setStatus("Checking sign-in…");
+                const session = await ensureSession();
+                setStatus("Signed in. Loading map…");
+                signoutEl.disabled = false;
 
-            const CONFIG = {
-                GEOJSON_URL: 'data/2010_Block_Groups.geojson',
-                NAMES_TXT_URL: 'data/requested_bg.txt',
-                COLOR_FILL: '#34d399',
-                COLOR_OUTLINE: '#065f46'
-            };
-
-            //establish base map object
-            const map = new maplibregl.Map({
+                // Create MapLibre map using osm liberty style json
+                const map = new maplibregl.Map({
                 container: 'map',
                 center: [-84.582236, 42.697406],
                 zoom: 12,
-                style: 'static/map-style.json', //osm_liberty style json
-            });
-            map.addControl(new maplibregl.NavigationControl()); //basic controls
-            
-            map.once("load", async () => {
-                //loads basemap using session token
-                window.maplibreArcGIS.BasemapStyle.applyStyle(map, {style: "arcgis/navigation", token: session.token});
+                style: 'static/map-style.json'
+                });
+                map.addControl(new maplibregl.NavigationControl());
 
-                //secured feature layer format
-                //const featureUrl = "https://services3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/Trailheads/FeatureServer/0";
-                //const featureLayer = await window.maplibreArcGIS.FeatureLayer.fromUrl(featureUrl, {authentication: session.token});
-                //featureLayer.addSourcesAndLayersTo(map);
+                let fl = null;
 
-                //Michigan Blocks Layer
-                const blocksURL = "https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0"
-                const fl = await window.maplibreArcGIS.FeatureLayer.fromUrl(featureUrl);
-                fl.addSourcesAndLayersTo(map);
+                async function addBlocksLayer() {
+                    // Obtain a token for feature service host
+                    const tokenForService = await session.getToken(blocksURL);
 
-                //on click popup
-                map.on('click', fl.id, (e) => {
-                    const f = e.features?.[0];
-                    if (!f) return;
-                    const props = f.properties || {};
-                    new maplibregl.Popup()
+                    // Create FeatureLayer and add to map
+                    fl = await window.maplibreArcGIS.FeatureLayer.fromUrl(blocksURL, { token: tokenForService });
+                    fl.addSourcesAndLayersTo(map);
+
+                    // Click popup for layer
+                    const lid = fl.layers()[0].id;
+                    map.on('click', lid, (e) => {
+                        const f = e.features?.[0];
+                        if (!f) return;
+                        new maplibregl.Popup()
                         .setLngLat(e.lngLat)
-                        .setHTML(`<pre>${JSON.stringify(props, null, 2)}</pre>`)
+                        .setHTML(`<pre>${JSON.stringify(f.properties, null, 2)}</pre>`)
                         .addTo(map);
+                    });
+                }
+
+                function removeBlocksLayer() {
+                    if (!fl) return;
+                    const layerIds = fl.layers().map(l => l.id);
+                    const sourceIds = Object.keys(fl.sources());
+
+                    // Remove layers then sources
+                    for (const id of layerIds) {
+                        if (map.getLayer(id)) map.removeLayer(id);
+                    }
+                    for (const sid of sourceIds) {
+                        if (map.getSource(sid)) map.removeSource(sid);
+                    }
+                    fl = null;
+                }
+
+                map.once("load", async () => {
+                    await addBlocksLayer();
+                    setStatus("Ready.");
                 });
 
-                //secured vector tile service layer format
-                //const vtl = await window.maplibreArcGIS.VectorTileLayer.fromUrl("https://vectortileservices3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/Santa_Monica_parcels_VTL/VectorTileServer", {authentication: session.token});
-                //vtl.addSourcesAndLayersTo(map);
-            });
+                signoutEl.onclick = async () => {
+                    try { await session.signOut(); } catch {}
+                    localStorage.removeItem("__ARCGIS_OAUTH__");
+                    window.location.reload();
+                };
+
+            } catch (err) {
+                console.error(err);
+                setStatus("Authentication error. See console for details.");
+            }
         })();
     </script>
 </body>
 </html>
+``

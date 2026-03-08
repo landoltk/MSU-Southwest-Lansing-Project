@@ -1,15 +1,35 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><title>OAuth Callback</title></head>
+<head>
+    <meta charset="utf-8" />
+    <title>OAuth Callback</title>
+</head>
 <body>
-https://unpkg.com/@esri/arcgis-rest-request@^4/dist/bundled/arcgis-rest-request.umd.min.js</script>
-<script>
-    // Completes the PKCE exchange and returns to index
-    arcgisRest.ArcGISIdentityManager.completeOAuth2({
-        clientId: "X2bp68ntiEFGIOsd",
-        redirectUri: "https://msu-southwest-lansing-project.onrender.com/",
-        portal: "https://www.arcgis.com/sharing/rest"
-    });
-</script>
+    <script src="https://unpkg.com/@esri/arcgis-rest-request@^4/dist/bundled/request.umd.min.js"></script>
+    <script>
+        (async () => {
+            // IMPORTANT: these must match what you use in index.html and what you registered in ArcGIS
+            const clientId = "X2bp68ntiEFGIOsd";
+            const redirectUri = "https://msu-southwest-lansing-project.onrender.com/callback.html";
+            const portal = "https://www.arcgis.com/sharing/rest";
+
+            try {
+                const mgr = await arcgisRest.ArcGISIdentityManager.completeOAuth2({
+                clientId,
+                redirectUri,
+                portal,
+                popup: false
+                });
+
+                // Persist the authenticated session so index.html can reuse it
+                localStorage.setItem("__ARCGIS_OAUTH__", mgr.serialize());
+
+                // Go back to the app
+                window.location.replace("/");
+            } catch (e) {
+                document.body.innerHTML = "<h3>Sign-in failed.</h3><pre>" + (e?.message || e) + "</pre>";
+            }
+        })();
+    </script>
 </body>
 </html>
