@@ -9,7 +9,11 @@
   "sources": {
     "openmaptiles": {
       "type": "vector",
+<<<<<<< HEAD
       "url": "https://api.maptiler.com/tiles/v3-openmaptiles/tiles.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL"
+=======
+      "url": "https://api.maptiler.com/tiles/v3-openmaptiles/tiles.json?key=5sFvPIeyw4sEgzsAOKgQ"
+>>>>>>> b1a56f3b753d58659afac4b5087a3ece0bcff671
     },
     "natural_earth_shaded_relief": {
       "maxzoom": 6,
