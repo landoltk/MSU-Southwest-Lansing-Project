@@ -6,7 +6,7 @@ Requirements:
 <br>Library dependencies can be found in requirements.txt including ideal version numbers.
 <br>Use pip install to install the required libraries
 <br>
-<br>To run the app locally run: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+<br>To run the app locally enter the app directory and run: uvicorn main:app --reload --host 0.0.0.0 --port 8000
 <br>And visit http://localhost:8000/
 <br>
 <br>To build the app using Render.com
