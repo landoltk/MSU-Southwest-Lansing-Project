@@ -8,7 +8,6 @@ Requirements:
 <br>
 <br>To run the app locally run: uvicorn main:app --reload --host 0.0.0.0 --port 8000
 <br>And visit http://localhost:8000/
-<br>You will then be prompted to log into ArcGIS Online (which can be done using an MSU login)
 <br>
 <br>To build the app using Render.com
 <br>Utilize this repo or create a fork
