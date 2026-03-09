@@ -34,8 +34,6 @@ pathlib==1.0.1
 
 https://jupyterhub.egr.msu.edu/hub/user-redirect/lab/tree/CMSE495read/MSU-Southwest-Lansing-Project/INSTALL.md
 <br>
-
-You will need to sign in with your Michigan State email address to view the app. We are currently working on an achieving a domain that will make the app accessible to all
 <br>
 
 # Contact the Creators
