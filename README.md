@@ -9,20 +9,18 @@ This course is a semester long project where you collaborate with an organizatio
 
 Our data is located inside the "app" folder and you will find an excel sheet with all of our data organized and documented. Any data that is used to add future layers needs to be recorded and filed into the same organization outlined in the document.
 <br>
-
-Repository Rules:
+**Repository Rules:**
 1. Work in a local branch and commit changes with clear descriptions of changes. List filename and then the changes made so we can keep track of everything
 2. Any data added needs to be documented inside the "app" folder and then in the excel sheet marked "data"
 3. Mark any layer additions below with extra added data in the "Layers" section
-<br>
+
 # Layers Completed:
 
 When the app is complete I will add all of our layers here so that viewers can have a good understanding of what the tool represents before going on
 <br>
 
 # Code Requirements and Installation Instructions Link
-<br>
-Required Packages:
+**Required Packages:**
 <br>
 fastapi==0.129.0
 <br>
@@ -30,9 +28,9 @@ uvicorn==0.41.0
 <br>
 pathlib==1.0.1
 <br>
-Official App Link:
+**Official App Link:**
 <br>
-App Installation Instructions Shareable Link:
+**App Installation Instructions Shareable Link:**
 
 https://jupyterhub.egr.msu.edu/hub/user-redirect/lab/tree/CMSE495read/MSU-Southwest-Lansing-Project/INSTALL.md
 <br>
@@ -41,7 +39,7 @@ You will need to sign in with your Michigan State email address to view the app.
 <br>
 
 # Contact the Creators
-<br>
+**2026 Spring Southwest Lansing Team:**
 Kyle Landolt - landoltk@msu.edu
 <br>
 Mason Lee - leemason@msu.edu
