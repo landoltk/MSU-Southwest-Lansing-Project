@@ -40,6 +40,7 @@ You will need to sign in with your Michigan State email address to view the app.
 
 # Contact the Creators
 **2026 Spring Southwest Lansing Team:**
+<br>
 Kyle Landolt - landoltk@msu.edu
 <br>
 Mason Lee - leemason@msu.edu
