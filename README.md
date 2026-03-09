@@ -29,6 +29,7 @@ uvicorn==0.41.0
 pathlib==1.0.1
 <br>
 **Official App Link:**
+<br>https://msu-southwest-lansing-project.onrender.com/
 <br>
 **App Installation Instructions Shareable Link:**
 
