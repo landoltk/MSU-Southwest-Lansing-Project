@@ -7,7 +7,7 @@ Requirements:
 <br>Use pip install to install the required libraries
 <br>
 <br>To run the app locally enter the app directory and run: uvicorn main:app --reload --host 0.0.0.0 --port 8000
-<br>And visit http://localhost:8000/
+<br>Ignore uvicorn provided link and visit http://localhost:8000/
 <br>
 <br>To build the app using Render.com
 <br>Utilize this repo or create a fork
