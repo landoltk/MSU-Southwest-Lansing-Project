@@ -19,6 +19,7 @@ Our data is located inside the "app" folder and you will find an excel sheet wit
 # Boundary Location:
 <br>
 Western Boundary - South Waverly Road
+
 <br>
 
 Eastern Boundary - Martin Luther King BLVD, connects to South Washington RD through Jolly Rd, then goes all the way down to Edgewood BLVD.
