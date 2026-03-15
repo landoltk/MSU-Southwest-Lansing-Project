@@ -20,11 +20,14 @@ Our data is located inside the "app" folder and you will find an excel sheet wit
 <br>
 Western Boundary - South Waverly Road
 <br>
+
 Eastern Boundary - Martin Luther King BLVD, connects to South Washington RD through Jolly Rd, then goes all the way down to Edgewood BLVD.
 <br>
-Northern Boundary - West Mt Hope Avenue is the main boundary and anything South corresponding to the other boundaries is included. Also, we include everything in between the Country Club of Lansing and Grand River.
+
+Northern Boundary - West Mt Hope Avenue
 <br>
-Southern Boundary - Along I-96 connecting from South Washington to South Waverly. Also includes the area in-between South Waverly RD, Northern Michigan RD, and the I-96 highway
+
+Southern Boundary - I-96 boundary
 <br>
 
 # Layers Completed:
