@@ -11,10 +11,11 @@
 <body>
     <h1>SWLP Prototype</h1>
     <div id="map" style="width:100%;height:100vh"></div>
-    <div id="bg-panel" style="position:absolute;bottom:12px;right:12px;z-index:1;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;min-width:200px;max-height:40vh;overflow:auto;font:14px system-ui">
+    <div id="bg-panel" style="position:absolute;bottom:12px;left:12px;z-index:1;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;min-width:220px;max-height:40vh;overflow:auto;font:14px system-ui">
         <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
             <div style="font-weight:600">Selected BGs</div>
             <button id="bg-clear" style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer">Clear</button>
+            <button id="bg-submit" style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#eef2ff;cursor:pointer">Submit</button>
         </div>
         <ul id="bg-list" style="margin:8px 0 0 0;padding:0;list-style:none"></ul>
     </div>
@@ -32,6 +33,7 @@
 
         //working URL including filter
         const arcgisBlockGroups = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/2010_Block_Groups/FeatureServer/0/query?where=CNTY_CODE%20IN%20(65,45,37)&outFields=*&f=geojson&outSR=4326';
+        const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0'
 
         //helper functions
         function parseBgLabel(name) {
@@ -123,6 +125,7 @@
         });
 
         //selection logic
+        let selectionMode = 'bg';
         const selectedIds = new Set();
         const idToName = new Map();
         map.on('click', 'arcgis-fill', e => {
@@ -143,6 +146,10 @@
         });
         map.on('mouseenter', 'arcgis-fill', () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', 'arcgis-fill', () => map.getCanvas().style.cursor = '');
+
+        //block mode
+        //todo
+
 
     </script>
 
