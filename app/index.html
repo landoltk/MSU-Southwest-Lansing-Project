@@ -1,216 +1,942 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-        href="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.css"
-        rel="stylesheet"
-    />
-    
-    <style>
-        html, body { height: 100%; margin: 0; }
-        #map { height: 100%; width: 100%; }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        .panel {
-        position: absolute; z-index: 2; top: 100px; left: 12px;
-        background: #fff; padding: 10px 12px; border-radius: 8px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        max-width: 360px;
-        }
-        .panel code { background: #f1f5f9; padding: 0 4px; border-radius: 4px; }
-        .btn {
-        display: inline-block; padding: 6px 10px; border-radius: 6px;
-        background: #2563eb; color: #fff; border: none; cursor: pointer;
-        font: inherit;
-        }
-        .btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .muted { color: #475569; }
-    </style>
+<link href="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" 
+rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
-    <title>SWLP Prototype Map</title>
-    <link rel="stylesheet" href="static/style.css" />
+<style>
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+#map {
+    flex: 1;
+    height: 100%;
+    border: 5px solid #166534;
+    box-sizing: border-box;
+}
+
+
+.sidebar-shell {
+    position: relative;
+    width: 35%;
+    min-width: 320px;
+    height: 100%;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+/* main sidebar formatting */
+.sidebar {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    background: white;
+    border: 5px solid #166534;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+    overflow-y: auto;
+}
+
+/* About the Team drawer pannel formatting */
+.drawer-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 390px;
+    height: calc(100% + 10px);
+    background: white;
+    border: 5px solid #166534;
+    box-sizing: border-box;
+    padding: 20px 18px;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    z-index: 1;
+    overflow-y: auto;
+}
+
+/* This is how far the drawer slides out (open to change)*/
+.drawer-panel.open {
+    transform: translateX(-390px);
+}
+
+/* This is the tab that says "About the Team" */
+.drawer-handle {
+    position: absolute;
+    top: 160px;
+    left: -42px;
+    width: 42px;
+    height: 140px;
+    background: #166534;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    border-radius: 10px 0 0 10px;
+    z-index: 6;
+    transition: left 0.3s ease;
+}
+
+.drawer-handle.open {
+    left: -432px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.btn:disabled {
+    background: #9ca3af;
+}
+
+.muted {
+    color: #475569;
+}
+/*This is the header of "Southwest Lansing Project Prototype*/
+.sidebar-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.status-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.status-icon {
+    height: 90px;
+    width: auto;
+}
+
+.left-logo {
+    justify-self: start;
+}
+
+.center-logo {
+    justify-self: center;
+}
+
+.right-logo {
+    justify-self: end;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 10px;
+}
+
+.filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    font-size: 15px;
+}
+
+.drawer-panel h3 {
+    margin-top: 40px;
+}
+.cced-logo {
+    height: 100px;
+    width: auto;
+}
+#reload {
+    display: none;
+}
+.drawer-panel {
+    padding: 0;
+}
+
+.about-header h2 {
+    padding: 6px 18px 16px 18px;
+    border-bottom: 5px solid #3FA34D;
+    margin-bottom: 10px;
+}
+.about-content h3 {
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+/* This is how each team member will be displayed in the about the team tab*/
+.team-member {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px 0;
+    border-top: 3px solid #3FA34D;
+}
+
+.member-text {
+    flex: 1;
+}
+
+.member-image {
+    width: 110px;
+}
+
+.member-image img {
+    width: 100%;
+    border-radius: 6px;
+}
+.member-text h4 {
+    font-size: 22px;              
+    font-family: "Playfair Display", sans-serif;  
+    font-weight: 700;              
+    margin: 0 0 4px 0;    
+}
+.about-header h2,
+.about-content h3,
+.member-text h4 {
+    font-family: "Playfair Display", serif;
+}
+.partner-thanks {
+    margin-top: 20px;
+}
+
+.partner-thanks h3 {
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.partner-thanks p {
+    text-align: center;
+    font-weight: normal;
+    line-height: 1.5;
+    margin: 0;
+}
+.about-header h2 {
+    text-align: center;
+    margin: 0;
+}
+
+.about-content h3 {
+    text-align: center;
+    margin-top: 10px;
+}
+.member-text h4 {
+    margin-bottom: 10px; 
+}
+
+.member-text ul {
+    margin-top: 0;      
+    padding-left: 20px;  
+}
+
+.member-text li {
+    margin-bottom: 6px; 
+}
+.selected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#selected-filter-display {
+    font-size: 17px;
+    font-weight: 500;
+    color: #166534;
+}
+.section-bar {
+    height: 4px;
+    background: #166534; 
+    border: none;
+    margin: 8px 0 12px 0;
+}
+.selected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.bg-link.active {
+    color: purple;
+    font-weight: 600;
+}
+.filter-data-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+
+
+#selected-filter-display {
+    margin: 0;
+    flex: 1;            
+    min-width: 0;  
+}
+
+#show-data-btn {
+    flex-shrink: 0;    
+    white-space: nowrap;
+}
+
+.data-box {
+    margin-top: 14px;
+    padding: 14px;
+    border: 2px solid #166534;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.data-box h4 {
+    margin: 0 0 8px 0;
+    color: #166534;
+}
+
+.data-box ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+}
+.data-box {
+    position: relative;
+    margin-top: 14px;
+    padding: 14px;
+    padding-top: 18px;
+    border: 2px solid #166534;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.close-data-btn {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: #166534;
+    font-weight: bold;
+    padding: 0;
+}
+
+.close-data-btn:hover {
+    opacity: 0.7;
+}
+</style>
+
+<title>SWLP Prototype Map</title>
+<link rel="stylesheet" href="static/style.css" />
 </head>
+
 <body>
-    <h1>SWLP Prototype</h1>
+
+<div class="app">
+
     <div id="map"></div>
 
-    <!--Need to add block selection to panel-->
-    <div class="panel"> 
-        <button id="reload" class="btn">Reload list</button>
-        <div id="status" class="muted" style="margin-top:8px;"></div>
+    <div class="sidebar-shell">
+
+        <div id="drawer-panel" class="drawer-panel">
+    <div class="about-header">
+        <h2>Meet the 2026 Spring Southwest Lansing Team and our Community Partner!</h2>
     </div>
 
-    <!--MapLibre Section-->
-    <script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
-    <script>
-        const CONFIG = {
-            GEOJSON_URL: 'data/2010_Block_Groups.geojson',
-            NAMES_TXT_URL: 'data/requested_bg.txt',
-            COLOR_FILL: '#34d399',
-            COLOR_OUTLINE: '#065f46'
-        };
-        //document.getElementById('gj-url').textContent = CONFIG.GEOJSON_URL;
-        //document.getElementById('csv-url').textContent = CONFIG.NAMES_TXT_URL;
+    <div class="about-content">
+        <div class="partner-thanks">
 
+            <h3>Thank You to the Center for Community and Economic Development</h3>
+    
+            <p>
+            First and foremost The Southwest Lansing team wanted to recognize the help from the Center for Community and Economic Development (CCED). They were always tremendous and helpful whenever we had questions or needed advice. The CCED provided the foundation for what this project should create and we are turning that foundation into reality. The help provided was substantial and the team is so thankful for your contributions.
+            </p>
+    
+        </div>
+    <hr class="section-divider">
+        <h3>Spring 2026 Team Members:</h3>
 
-        const map = new maplibregl.Map({
-            container: 'map',
-            center: [-84.582236, 42.697406],
-            zoom: 12,
-            style: 'static/map-style.json', //osm_liberty style json
-        });
-        map.addControl(new maplibregl.NavigationControl());
+        <div class="team-member">
 
-        let currentSourceKey = 'block-groups';
+        <div class="member-text">
+            <h4>Mason Lee</h4>
+            <ul>
+                <li><strong>Major:</strong> Computational Data Science</li>
+                <li><strong>School:</strong> Michigan State University</li>
+                <li><strong>Team Role:</strong> Communication Partner Liaison, Speaker, Visualization/Reporting Lead</li>
+                <li><strong>Email:</strong> leemason@msu.edu</li>
+            </ul>
+        </div>
+    
+        <div class="member-image">
+            <img src="static/spartywhite.png" alt="Mason Lee">
+        </div>
 
-        map.on('load', async () => {
-            await loadAndRender();
-            document.getElementById('reload').addEventListener('click', loadAndRender);
-        });
+</div>
 
-        //BG Load
-        async function loadAndRender() {
-            const status = setStatus('Loading files…');
-            setLoading(true);
-            try {
-                //Pull both GeoJSON and Requested BGs
-                const [gj, txt] = await Promise.all([
-                fetch(CONFIG.GEOJSON_URL, { cache: 'no-store' }).then(r => r.json()),
-                fetch(CONFIG.NAMES_TXT_URL, { cache: 'no-store' }).then(r => r.text())
-                ]);
+        <div class="team-member">
 
-                //Check requested list
-                const requestedNames = parseNamesTxt(txt);
-                if (requestedNames.size === 0) {
-                    setStatus('The requested BG list is empty. No overlay.');
-                } else {
-                    setStatus('Loaded $(requestedNames.size} BG(s) from list. Filtering...)');
-                }
+            <div class="member-text">
+                <h4>William McNeilly</h4>
+            <ul>
+                <li><strong>Major:</strong> Data Science</li>
+                <li><strong>School:</strong> Michigan State University</li>
+                <li><strong>Team Role:</strong> Documentation and Modeling Lead</li>
+                <li><strong>Email:</strong> mcneil42@msu.edu</li>
+             </ul>
+            </div>
+        
+            <div class="member-image">
+                <img src="static/spartywhite.png" alt="Kyle Landolt">
+            </div>
+        
+        </div>
 
-                const filtered = filterGeoJSONByCountyAndNames(gj, requestedNames, '065'); //pre-filter GeoJSON
+        <div class="team-member">
 
-                //Check if source already exists
-                if (map.getSource(currentSourceKey)) {
-                    map.getSource(currentSourceKey).setData(filtered);
-                } else {
-                    map.addSource(currentSourceKey, {type: 'geojson', data: filtered});
-                    map.addLayer({
-                        id: 'bg-fill',
-                        type: 'fill',
-                        source: currentSourceKey,
-                        paint: {
-                            'fill-color': CONFIG.COLOR_FILL,
-                            'fill-opacity': 0.2
-                        }
-                    });
-                    map.addLayer({
-                        id: 'bg-outline',
-                        type: 'line',
-                        source: currentSourceKey,
-                        paint: {
-                            'line-color': CONFIG.COLOR_OUTLINE,
-                            'line-width': 1
-                        }
-                    });
-                    //TODO Pull and show data on click
-                    //Show basic polygon info on click
-                    map.on('mouseenter', 'bg-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
-                    map.on('mouseleave', 'bg-fill', () => { map.getCanvas().style.cursor = ''; });
+            <div class="member-text">
+                <h4>Kyle Landolt</h4>
+            <ul>
+                <li><strong>Major:</strong> Data Science</li>
+                <li><strong>School:</strong> Michigan State University</li>
+                <li><strong>Team Role:</strong> Project Lead and Github Coordinator</li>
+                <li><strong>Email:</strong> landoltk@msu.edu</li>
+             </ul>
+            </div>
+        
+            <div class="member-image">
+                <img src="static/spartywhite.png" alt="Kyle Landolt">
+            </div>
+        
+        </div>
 
-                    map.on('click', 'bg-fill', (e) => {
-                    if (!e.features?.length) return;
+        <div class="team-member">
 
-                    const feature = e.features[0];
-                    const p = feature.properties || {};
+            <div class="member-text">
+                <h4>Vibu Darshan</h4>
+            <ul>
+                <li><strong>Major:</strong> Computational Data Science</li>
+                <li><strong>School:</strong> Michigan State University</li>
+                <li><strong>Team Role:</strong> Communication Coordinator, Visualization/Reporting Lead</li>
+                <li><strong>Email:</strong> darshanv@msu.edu</li>
+             </ul>
+            </div>
+        
+            <div class="member-image">
+                <img src="static/spartywhite.png" alt="Kyle Landolt">
+            </div>
+        
+        </div>
+    </div>
+</div>
 
-                    new maplibregl.Popup({ closeButton: true, closeOnClick: true })
-                        .setLngLat(e.lngLat)
-                        .setHTML(`
-                        <div style="font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
-                            <div><b>NAME</b>: ${p.NAME ?? ''}</div>
-                            ${p.LABEL ? `<div><b>LABEL</b>: ${p.LABEL}</div>` : ''}
-                            ${p.TYPE ? `<div><b>TYPE</b>: ${p.TYPE}</div>` : ''}
-                            ${p.CNTY_CODE ? `<div><b>CNTY_CODE</b>: ${p.CNTY_CODE}</div>` : ''}
-                        </div>
-                        `)
-                        .addTo(map);
-                    });
+        <button id="drawer-toggle" class="drawer-handle">About The Team</button>
 
-                }
+        <aside class="sidebar">
 
-                const hadFeatures = fitToGeoJSON(filtered);
-                if (!hadFeatures) {
-                    setStatus('No features matched the requested Block Group list.');
-                } else {
-                    setStatus(`Rendering ${filtered.features.length} matching polygon(s).`);
-                }
-            } catch (err) {
-                console.error(err);
-                setStatus('Error loading files.');
-            } finally {
-                setLoading(false);
-            }
+            <div class="sidebar-header">
+                Southwest Lansing Project Prototype
+            </div>
+            
+            <hr style="margin:15px 0; border:3px solid #84cc16;">
+
+            <button id="reload" class="btn">Reload list</button>
+            <span id="status" class="muted" style="display:none;"></span>
+            <div class="status-row">
+                <img src="static/spartywhite.png" class="status-icon left-logo">
+                <img src="static/spartywhite2.png" class="status-icon center-logo">
+                <img src="static/spartywhite3.png" class="status-icon right-logo cced-logo">
+            </div>
+
+            <h3>Filters</h3>
+
+            <div class="filters">
+                <label class="filter-option">
+                    <input type="checkbox" id="food-filter">
+                    Food
+                </label>
+
+                <label class="filter-option">
+                    <input type="checkbox" id="housesize-filter">
+                    Household Size
+                </label>
+
+                <label class="filter-option">
+                    <input type="checkbox" id="race-filter">
+                    Race
+                </label>
+
+                <label class="filter-option">
+                    <input type="checkbox" id="bgdesc-filter">
+                    Population
+                </label>
+
+                <label class="filter-option">
+                    <input type="checkbox" id="test-filter">
+                    Block Group Descriptions
+                </label>
+            </div>
+
+            <hr style="margin:20px 0; height:5px; background:#84cc16; border:none;">
+
+            
+            <div class="selected-header">
+                <h3>Selected Block Groups:</h3>
+                <button id="clear-selection" class="btn">Unselect All</button>
+            </div>
+            
+            <hr class="section-bar">
+            
+            <div class="filter-data-row" style="margin-top:10px;">
+                <p id="selected-filter-display" class="muted" style="margin:0 0 10px 0;">
+                    Selected Filter: None
+                </p>
+            
+                <button id="show-data-btn" class="btn" disabled>
+                    Show data
+                </button>
+            </div>
+            
+            <div id="data-box" class="data-box" style="display:none;">
+                <button id="close-data-box" class="close-data-btn" aria-label="Close data box">
+                    ×
+                </button>
+            
+                <div id="data-box-content">
+                    Dummy data will appear here.
+                </div>
+            </div>
+
+<div id="selected-list" class="muted">None</div>
+
+            <div id="details" class="muted">
+                Click a polygon to view details.
+            </div>
+        </aside>
+
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
+
+<script>
+const CONFIG = {
+    GEOJSON_URL: 'data/2010_Block_Groups.geojson',
+    NAMES_TXT_URL: 'data/requested_bg.txt',
+    COLOR_FILL: '#34d399',
+    COLOR_OUTLINE: '#065f46'
+};
+
+const map = new maplibregl.Map({
+    container: 'map',
+    center: [-84.582236, 42.697406],
+    zoom: 12,
+    style: 'static/map-style.json'
+});
+
+map.addControl(new maplibregl.NavigationControl());
+
+let currentSourceKey = 'block-groups';
+let selectedBlockGroups = [];
+map.on('load', async () => {
+    await loadAndRender();
+    document.getElementById('reload').addEventListener('click', loadAndRender);
+});
+
+async function loadAndRender() {
+    setStatus('Loading files...');
+    setLoading(true);
+
+    try {
+        const [gj, txt] = await Promise.all([
+            fetch(CONFIG.GEOJSON_URL, { cache: 'no-store' }).then(r => r.json()),
+            fetch(CONFIG.NAMES_TXT_URL, { cache: 'no-store' }).then(r => r.text())
+        ]);
+
+        const requestedNames = parseNamesTxt(txt);
+
+        if (requestedNames.size === 0) {
+            setStatus('The requested BG list is empty. No overlay.');
+        } else {
+            setStatus(`Loaded ${requestedNames.size} BG(s) from list. Filtering...`);
         }
 
-        //Helper Functions
-        function parseNamesTxt(text) {
-            const names = new Set();
-            const cleaned = (text ?? '').replace(/^\uFEFF/, '');
-            for (const raw of cleaned.split(/\r?\n/)) {
-                const line = (raw ?? '').trim();
-                if (!line || line.startsWith('#')) continue;
-                names.add(line);
-            }
-            return names;
-        }
+        const filtered = filterGeoJSONByCountyAndNames(gj, requestedNames, '065');
 
-
-        function filterGeoJSONByCountyAndNames(geojson, requestedNames, countyCode = '065') {
-            const feats = Array.isArray(geojson?.features) ? geojson.features : [];
-            const features = feats.filter(f => {
-                const p = f?.properties || {};
-                return p.CNTY_CODE === countyCode && requestedNames.has(p.NAME);
+        if (map.getSource(currentSourceKey)) {
+            map.getSource(currentSourceKey).setData(filtered);
+        } else {
+            map.addSource(currentSourceKey, {
+                type: 'geojson',
+                data: filtered
             });
-            return { type: 'FeatureCollection', features };
+
+            map.addLayer({
+                id: 'bg-fill',
+                type: 'fill',
+                source: currentSourceKey,
+                paint: {
+                    'fill-color': CONFIG.COLOR_FILL,
+                    'fill-opacity': 0.2
+                }
+            });
+            
+            map.addLayer({
+                id: 'bg-outline',
+                type: 'line',
+                source: currentSourceKey,
+                paint: {
+                    'line-color': CONFIG.COLOR_OUTLINE,
+                    'line-width': 1
+                }
+            });
+            
+            map.addLayer({
+                id: 'selected-bg-fill',
+                type: 'fill',
+                source: currentSourceKey,
+                paint: {
+                    'fill-color': '#3b82f6',
+                    'fill-opacity': 0.6
+                },
+                filter: ['in', ['get', 'NAME'], ['literal', []]]
+            });
+            map.addLayer({
+                id: 'active-bg-highlight',
+                type: 'fill',
+                source: currentSourceKey,
+                paint: {
+                    'fill-color': '#fde68a', 
+                    'fill-opacity': 0.4      
+                },
+                filter: ['==', 'NAME', '___none___']
+            });
+
+            map.on('mouseenter', 'bg-fill', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'bg-fill', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            map.on('click', 'bg-fill', (e) => {
+                if (!e.features?.length) return;
+            
+                const feature = e.features[0];
+                const p = feature.properties || {};
+                const bgName = p.NAME;
+            
+                const index = selectedBlockGroups.indexOf(bgName);
+            
+                if (index === -1) {
+                    selectedBlockGroups.push(bgName);
+                } else {
+                    selectedBlockGroups.splice(index, 1);
+            
+                    const activeFilter = map.getFilter('active-bg-highlight');
+                    if (activeFilter && activeFilter[2] === bgName) {
+                        map.setFilter('active-bg-highlight', ['==', 'NAME', '___none___']);
+                    }
+                }
+            
+                map.setFilter('selected-bg-fill', [
+                    'in',
+                    ['get', 'NAME'],
+                    ['literal', selectedBlockGroups]
+                ]);
+            
+                updateSelectedList();
+            });
         }
 
-        function fitToGeoJSON(geojson) {
-            const bounds = new maplibregl.LngLatBounds();
-            let count = 0;
+        const hadFeatures = fitToGeoJSON(filtered);
 
-            for (const f of geojson.features || []) {
-                if (!f.geometry) continue;
-                count++;
-                walkGeom(f.geometry, (c) => bounds.extend(c));
+        if (!hadFeatures) {
+            setStatus('No features matched the requested Block Group list.');
+        } else {
+            setStatus(`Rendering ${filtered.features.length} matching polygon(s).`);
+        }
+
+    } catch (err) {
+        console.error(err);
+        setStatus('Error loading files.');
+    } finally {
+        setLoading(false);
+    }
+}
+
+function parseNamesTxt(text) {
+    const names = new Set();
+    const cleaned = (text ?? '').replace(/^\uFEFF/, '');
+
+    for (const raw of cleaned.split(/\r?\n/)) {
+        const line = (raw ?? '').trim();
+        if (!line || line.startsWith('#')) continue;
+        names.add(line);
+    }
+
+    return names;
+}
+
+function filterGeoJSONByCountyAndNames(geojson, requestedNames, countyCode = '065') {
+    const feats = Array.isArray(geojson?.features) ? geojson.features : [];
+
+    const features = feats.filter(f => {
+        const p = f?.properties || {};
+        return p.CNTY_CODE === countyCode && requestedNames.has(p.NAME);
+    });
+
+    return { type: 'FeatureCollection', features };
+}
+
+function fitToGeoJSON(geojson) {
+    const bounds = new maplibregl.LngLatBounds();
+    let count = 0;
+
+    for (const f of geojson.features || []) {
+        if (!f.geometry) continue;
+        count++;
+        walkGeom(f.geometry, (c) => bounds.extend(c));
+    }
+
+    if (count > 0 && !bounds.isEmpty()) {
+        map.fitBounds(bounds, { padding: 40, duration: 700 });
+        return true;
+    }
+
+    return false;
+}
+
+function walkGeom(geom, cb) {
+    const t = geom.type, c = geom.coordinates;
+
+    if (t === 'Point') cb(c);
+    else if (t === 'MultiPoint' || t === 'LineString') c.forEach(cb);
+    else if (t === 'MultiLineString' || t === 'Polygon') c.flat(1).forEach(cb);
+    else if (t === 'MultiPolygon') c.flat(2).forEach(cb);
+    else if (t === 'GeometryCollection') geom.geometries.forEach(g => walkGeom(g, cb));
+}
+
+function setStatus(message) {
+    document.getElementById('status').textContent = message;
+}
+function updateSelectedList() {
+    const listEl = document.getElementById('selected-list');
+
+    if (selectedBlockGroups.length === 0) {
+        listEl.innerHTML = 'None';
+        return;
+    }
+
+    const items = selectedBlockGroups.map(bgId => {
+        const feature = map.querySourceFeatures(currentSourceKey, {
+            filter: ['==', 'NAME', bgId]
+        })[0];
+
+        const label = feature?.properties?.LABEL ?? 'Unknown';
+
+        return `
+            <li>
+                <a href="#" class="bg-link" data-id="${bgId}">
+                    ${bgId} (BG ${label})
+                </a>
+            </li>
+        `;
+            
+    });
+
+    listEl.innerHTML = `
+        <ul style="margin: 8px 0 0 18px; padding: 0;">
+            ${items.join('')}
+        </ul>
+    `;
+
+    addListClickHandlers();
+    updateShowDataButton();
+}
+function getSelectedFilterName() {
+    const selectedId = filterIds.find(id => {
+        const checkbox = document.getElementById(id);
+        return checkbox && checkbox.checked;
+    });
+
+    return selectedId ? filterLabels[selectedId] : null;
+}
+
+function updateShowDataButton() {
+    const btn = document.getElementById('show-data-btn');
+    const selectedFilter = getSelectedFilterName();
+
+    btn.disabled = !(selectedFilter && selectedBlockGroups.length > 0);
+}
+
+function renderDummyDataBox() {
+    const selectedFilter = getSelectedFilterName();
+    const dataBox = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedFilter || selectedBlockGroups.length === 0) {
+        dataBox.style.display = 'none';
+        return;
+    }
+
+    const listItems = selectedBlockGroups.map(bg => `<li>${bg}</li>`).join('');
+
+    content.innerHTML = `
+        <h4>${selectedFilter} Data Preview</h4>
+        <p><strong>Selected block groups:</strong> ${selectedBlockGroups.length}</p>
+        <p>This is a dummy placeholder box. Later, the actual ${selectedFilter.toLowerCase()} data can will go here in a table style form with the Block Group Identifications along the top of the table, with each data column going down the vertical side. I plan on connecting it so when you click a link and it highlights one of the spaces yellow, it will also highlight that tab of data in the graph. This makes it so the data is easy to see, find, and compare with the other block groups in the region. I also plan on making it so it will combine each selected block group and show a data summary of the combined data. Also, if one of the hyperlinks is selected, I want that block groups data to be posted along with the total summary, so people can see the comparison of the individual blockgroup to the area selected.</p>
+        <ul>
+            ${listItems}
+        </ul>
+    `;
+
+    dataBox.style.display = 'block';
+}
+function addListClickHandlers() {
+    const links = document.querySelectorAll('.bg-link');
+
+    links.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            const bgId = link.getAttribute('data-id');
+
+            links.forEach(l => l.classList.remove('active'));
+
+            link.classList.add('active');
+
+            map.setFilter('active-bg-highlight', [
+                '==',
+                'NAME',
+                bgId
+            ]);
+
+            const feature = getFeatureByName(bgId);
+            if (feature) {
+                zoomToFeature(feature);
+                showBlockGroupPopup(feature); // if you're using popup
             }
-            if (count > 0 && !bounds.isEmpty()) {
-                map.fitBounds(bounds, { padding: 40, duration: 700 });
-                return true;
-            }
-            return false;
+        });
+    });
+}
+function setLoading(isLoading) {
+    const btn = document.getElementById('reload');
+    btn.disabled = isLoading;
+    btn.textContent = isLoading ? 'Loading...' : 'Reload list';
+}
+
+const drawerToggle = document.getElementById('drawer-toggle');
+const drawerPanel = document.getElementById('drawer-panel');
+
+drawerToggle.addEventListener('click', () => {
+    drawerPanel.classList.toggle('open');
+    drawerToggle.classList.toggle('open');
+});
+document.getElementById('clear-selection').addEventListener('click', () => {
+    // clear array
+    selectedBlockGroups = [];
+
+    // clear blue selected polygons
+    map.setFilter('selected-bg-fill', [
+        'in',
+        ['get', 'NAME'],
+        ['literal', selectedBlockGroups]
+    ]);
+
+    map.setFilter('active-bg-highlight', [
+        '==',
+        'NAME',
+        '___none___'
+    ]);
+
+    updateSelectedList();
+
+    document.getElementById('details').innerHTML =
+        'Click a polygon to view details.';
+    document.getElementById('data-box').style.display = 'none';
+    updateShowDataButton();
+});
+document.getElementById('show-data-btn').addEventListener('click', () => {
+    renderDummyDataBox();
+});
+document.getElementById('close-data-box').addEventListener('click', () => {
+    document.getElementById('data-box').style.display = 'none';
+});
+const filterIds = [
+    'food-filter',
+    'housesize-filter',
+    'race-filter',
+    'bgdesc-filter',
+    'test-filter'
+];
+
+const filterLabels = {
+    'food-filter': 'Food',
+    'housesize-filter': 'Household Size',
+    'race-filter': 'Race',
+    'bgdesc-filter': 'Population',
+    'test-filter': 'Block Group Descriptions'
+};
+
+function updateSelectedFilterDisplay() {
+    const selectedFilter = getSelectedFilterName();
+
+    document.getElementById('selected-filter-display').textContent =
+        `Selected Filter: ${selectedFilter ? selectedFilter : 'None'}`;
+
+    updateShowDataButton();
+}
+filterIds.forEach(id => {
+    const checkbox = document.getElementById(id);
+    if (!checkbox) return;
+
+    checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+            filterIds.forEach(otherId => {
+                if (otherId !== id) {
+                    const other = document.getElementById(otherId);
+                    if (other) other.checked = false;
+                }
+            });
         }
 
-        function walkGeom(geom, cb) {
-            const t = geom.type, c = geom.coordinates;
-            if (t === 'Point') cb(c);
-            else if (t === 'MultiPoint' || t === 'LineString') c.forEach(cb);
-            else if (t === 'MultiLineString' || t === 'Polygon') c.flat(1).forEach(cb);
-            else if (t === 'MultiPolygon') c.flat(2).forEach(cb);
-            else if (t === 'GeometryCollection') geom.geometries.forEach(g => walkGeom(g, cb));
-        }
+        updateSelectedFilterDisplay();
+        document.getElementById('data-box').style.display = 'none';
+    });
+});
 
-        function setStatus(message) {
-            document.getElementById('status').textContent = message;
-            return message;
-        }
+updateSelectedFilterDisplay();
 
-        function setLoading(isLoading) {
-            const btn = document.getElementById('reload');
-            btn.disabled = isLoading;
-            btn.textContent = isLoading ? 'Loading…' : 'Reload list';
-        }
-    </script>
+</script>
+
 </body>
 </html>
