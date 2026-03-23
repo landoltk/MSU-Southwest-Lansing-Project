@@ -11,8 +11,3 @@ STATIC_DIR = BASE_DIR / "static"
 app.mount("/", StaticFiles(directory=str(BASE_DIR), html=True), name="root")
 app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-#index get
-@app.get("/")
-def index():
-    return FileResponse("index.html")
