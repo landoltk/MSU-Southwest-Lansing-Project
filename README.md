@@ -5,6 +5,12 @@ Group Members: Mason Lee, Kyle Landolt, Vibu Darshan, Will McNeilly
 <br>
 This course is a semester long project where you collaborate with an organization. Our community partner is the CCED (Center for Community and Economic Development) and our purpose is to build an open-source tool that can present community data about Southwest Lansing in a user-friendly and understandable way. Our goal is to demonstrate this tool in a way that is comprehensible for non-data scientists. We are exhilarated to be working with the CCED and can't wait for the tool that we will produce.
 <br>
+<br>
+MVP Video Link
+<br>
+<br>
+https://michiganstate.sharepoint.com/:v:/s/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/IQAHOiGqXb7DTLhUoLPM53q5ASNbF7zFKoUlcDQwD6v0tZI?e=KzlmKz&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D
+<br>
 # Folder Location and Repository Rules:
 
 Our data is located inside the "app" folder and you will find an excel sheet with all of our data organized and documented. Any data that is used to add future layers needs to be recorded and filed into the same organization outlined in the document.
