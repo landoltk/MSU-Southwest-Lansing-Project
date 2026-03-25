@@ -10,24 +10,42 @@ map.addControl(new maplibregl.NavigationControl());
 //arcGIS URLs
 const arcgisBlockGroups = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/2010_Block_Groups/FeatureServer/0/query?where=CNTY_CODE%20IN%20(65,45,37)&outFields=*&f=geojson&outSR=4326';
 const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0'
-const populationACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/PopulationACS/FeatureServer/0/query?where=1=1&outFields=*&f=json'
-const raceACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/RaceACS/FeatureServer/0/query?where=1=1&outFields=*&f=json'
+const populationACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/PopulationACS/FeatureServer/0/query?where=1=1&outFields=GEO_ID,B01003_001E&f=json'
+const raceACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/RaceACS/FeatureServer/0/query?where=1=1&outFields=*&f=csv'
 
 let activeId = null;
 const selectedIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
 
+const filterLabels = {
+    'food-filter': 'Food',
+    'housesize-filter': 'Household Size',
+    'race-filter': 'Race',
+    'population-filter': 'Population',
+    'bgdesc-filter': 'Block Group Descriptions'
+}
+
 //HELPER FUNCTIONS
 //standardizes ids from GEOID to match LINK from geojson
-function toCountyTract9(input) {
-    const digits = String(input ?? '').replace(/\D/g, '');
-    if (!digits) return null;
-    if (digits.length >= 12) {
-        const g12 = digits.slice(-12);
-        return g12.slice(2, 5) + g12.slice(5, 11);
+function key12FromAcs(geoId){const d=String(geoId??'').replace(/\D/g,'');return d.slice(-12)||null}
+function key12FromLink(link){const d=String(link??'').replace(/\D/g,'').slice(-9);if(d.length!==9)return null;const c2=d.slice(0,2),t6=d.slice(2,8),b1=d.slice(8);return '26'+c2.padStart(3,'0')+t6+b1}
+
+async function joinAcsToBgs(acsUrl,bgUrl){
+    const [acs,bg]=await Promise.all([
+        fetch(acsUrl).then(r=>r.json()).then(j=>(j.features||[]).map(f=>f.attributes||{})),
+        fetch(bgUrl).then(r=>r.json())
+    ])
+    const m=new Map()
+    for(const r of acs){const k=key12FromAcs(r.GEO_ID);if(k)m.set(k,r)}
+    for(const f of (bg.features||[])){
+        const p=f.properties||{}
+        const k=key12FromLink(p.LINK);if(!k)continue
+        p.JOINKEY12=k
+        idToName.set(k,String(p.NAME??k))
+        const row=m.get(k);if(row){idToRow.set(k,row);p.csv_B01003_001E=row.B01003_001E}
     }
-    return digits.slice(-9).padStart(9, '0');
+    return bg
 }
 
 async function fetchArcgisRows(url) {
@@ -39,46 +57,14 @@ async function fetchArcgisRows(url) {
     return (j.features || []).map(f => f.attributes || {});
 }
 
-async function joinToFeatures(tableUrl, bgUrl) {
-    const [rowsRaw, bg] = await Promise.all([
-        fetchArcgisRows(tableUrl),
-        fetch(bgUrl).then(r => r.json())
-    ]);
-
-    const rows = rowsRaw.slice(2)
-
-    const m = new Map();
-    for (const r of rows) {
-        const k = toCountyTract9(r?.geo_id ?? r?.GEO_ID);
-        if (k) m.set(k, r);
-    }
-
-    for (const f of (bg.features || [])) {
-        const k = toCountyTract9(f?.properties?.LINK);
-        if (k) {
-        f.properties.LINK = k;
-        idToName.set(k, String(f.properties?.NAME ?? k));
-        const row = m.get(k);
-        if (row) {
-            idToRow.set(k, row);
-            for (const [kk, v] of Object.entries(row)) {
-            if (kk === 'geo_id') continue;
-            if (!(kk in f.properties)) f.properties['csv_' + kk] = v;
-            }
-        }
-        }
-    }
-    return bg;
-}
-
 //pull from txt file
 async function fetchRequestedBgs() {
-    const res = await fetch('/data/requested_bg.txt', { cache: 'no-store' });
+    const res = await fetch('/static/data/requested_bg.txt', { cache: 'no-store' });
     if (!res.ok) return [];
     const text = await res.text();
     return text
         .split(/\r?\n/)
-        .map(s => toCountyTract9(s))
+        .map(s => key12FromLink(s))
         .filter(Boolean);
 }
 
@@ -117,7 +103,6 @@ function renderSelectedList() {
         a.onclick = e => {
         e.preventDefault();
         const id = String(a.getAttribute('data-id'));
-        focusFeature(id);
         highlightActive(id);
         highlightDataRow(id);
         };
@@ -125,53 +110,23 @@ function renderSelectedList() {
 }
 
 //data button logic
+function getActiveFilter(){
+    return Object.keys(filterLabels).find(id => {
+        const cb = document.getElementById(id)
+        return cb && cb.checked
+    })
+}
+
 function updateShowDataButton() {
     const btn = document.getElementById('show-data-btn');
     const population = document.getElementById('population-filter');
-    btn.disabled = !(population && population.checked && selectedIds.size);
+    btn.disabled = !(getActiveFilter() && selectedIds.size)
 }
-/*
-//gets coord bounding box
-function bboxOfGeometry(geom) {
-    function up(coords, box) {
-        for (const c of coords) {
-        if (typeof c[0] === 'number') {
-            const [x, y] = c;
-            box[0] = Math.min(box[0], x);
-            box[1] = Math.min(box[1], y);
-            box[2] = Math.max(box[2], x);
-            box[3] = Math.max(box[3], y);
-        } else {
-            up(c, box);
-        }
-        }
-    }
-
-    if (!geom) return null;
-    const box = [Infinity, Infinity, -Infinity, -Infinity];
-    if (geom.type === 'Polygon') up(geom.coordinates, box);
-    else if (geom.type === 'MultiPolygon') up(geom.coordinates, box);
-    else return null;
-    if (!isFinite(box[0])) return null;
-    return [[box[0], box[1]], [box[2], box[3]]];
-}
-
-//smooth zoom to selected region
-function focusFeature(id) {
-    const feats = map.querySourceFeatures('arcgis-layer', {
-        filter: ['==', 'LINK', id]
-    });
-    if (!feats.length) return;
-    const f = feats[0];
-    const b = bboxOfGeometry(f.geometry);
-    if (b) map.fitBounds(b, { padding: 40, duration: 600, maxZoom: 15 });
-}
-*/
 
 function syncSelectedFill() {
     map.setFilter('default-selected-fill', [
         'in',
-        ['get', 'LINK'],
+        ['get', 'JOINKEY12'],
         ['literal', [...selectedIds]]
     ]);
 }
@@ -187,7 +142,7 @@ function toggleSelection(id) {
 
 function highlightActive(id) {
     activeId = id;
-    map.setFilter('active-bg-highlight', ['==', 'LINK', id]);
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', id]);
     highlightDataRow(id);
 }
 
@@ -200,45 +155,27 @@ function applyDefaultSelection(ids) {
 
 }
 
-//shows data visualization box for selected group
-function buildDataBox() {
-    const box = document.getElementById('data-box');
-    const content = document.getElementById('data-box-content');
-    if (!selectedIds.size) {
-        box.style.display = 'none';
-        return;
-    }
+//different filters data visualization boxes
+function buildPopulationBox(){
+    const box=document.getElementById('data-box');
+    const content=document.getElementById('data-box-content')
+    if(!selectedIds.size){box.style.display='none';return}
+    const rowsHtml=[...selectedIds].map(id=>{
+        const name=idToName.get(id)||id
+        const row=idToRow.get(id)||{}
+        const raw=row['B01003_001E']
+        const val=Number.isFinite(Number(raw))?Number(raw).toLocaleString():(raw??'')
+        return `<tr data-id="${id}"><td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${val}</td></tr>`
+    }).join('')
+    content.innerHTML=`<table style="border-collapse:collapse;width:100%"><thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
+    box.style.display='block'
+}
 
-    const headerLeft = 'Block Group';
-    const headerRight = 'Population';
-
-    const rowsHtml = [...selectedIds].map(id => {
-        const name = idToName.get(id) || id;
-        const row = idToRow.get(id) || {};
-        const raw = row['csv_B01003_001E'];
-        const val = Number.isFinite(Number(raw)) ? Number(raw).toLocaleString() : (raw ?? '');
-        const isActive = activeId === id;   
-        return `<tr data-id="${id}"${isActive ? ' style="background:#fde68a;"' : ''}>
-                <td style="padding:6px 8px; border-bottom:1px solid #eee;">${name}</td>
-                <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${val}</td>
-                </tr>`;
-    }).join('');
-
-    const html = `
-        <h4 style="margin:0 0 8px 0; color:#166534;">${headerLeft} | ${headerRight}</h4>
-        <table style="border-collapse:collapse; width:100%">
-        <thead>
-            <tr>
-            <th style="text-align:left; padding:6px 8px; border-bottom:1px solid #ddd;">${headerLeft}</th>
-            <th style="text-align:right; padding:6px 8px; border-bottom:1px solid #ddd;">${headerRight}</th>
-            </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-        </table>
-    `;
-
-    content.innerHTML = html;
-    box.style.display = 'block';
+function buildPlaceholderBox(label){
+    const box = document.getElementById('data-box')
+    const content = document.getElementById('data-box-content')
+    content.innerHTML = `<h4>${label}</h4><p>Data coming soon.</p>`
+    box.style.display = 'block'
 }
 
 //hyperlink highlight for data
@@ -267,18 +204,8 @@ function setStatus(msg) {
 map.on('load', async () => {
     setLoading(true);
     try {
-        const data = await joinToFeatures(populationACS, arcgisBlockGroups);
-        
-
-        console.log('idToRow size:', idToRow.size);
-        console.log([...idToRow.entries()].slice(0, 3));
-
-
-        map.addSource('arcgis-layer', {
-        type: 'geojson',
-        data,
-        promoteId: 'LINK'
-        });
+        const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
+        map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
 
         map.addLayer({
         id: 'bg-fill',
@@ -299,7 +226,7 @@ map.on('load', async () => {
         type: 'fill',
         source: 'arcgis-layer',
         paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.6 },
-        filter: ['in', ['get', 'LINK'], ['literal', []]]
+        filter: ['in', ['get', 'JOINKEY12'], ['literal', []]]
         });
 
         map.addLayer({
@@ -307,7 +234,7 @@ map.on('load', async () => {
         type: 'fill',
         source: 'arcgis-layer',
         paint: { 'fill-color': '#fde68a', 'fill-opacity': 0.4 },
-        filter: ['==', 'LINK', '___none___']
+        filter: ['==', 'JOINKEY12', '___none___']
         });
 
         //on hover LINK display for troubleshooting
@@ -329,13 +256,18 @@ map.on('load', async () => {
         });
         */
 
-        map.on('mouseenter', 'bg-fill', () => map.getCanvas().style.cursor = 'pointer');
-        map.on('mouseleave', 'bg-fill', () => map.getCanvas().style.cursor = '');
+        map.on('mouseenter', 'bg-fill', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+        map.on('mouseleave', 'bg-fill', () => {
+            map.getCanvas().style.cursor = '';
+        });
 
         map.on('click', 'bg-fill', e => {
         if (!e.features?.length) return;
         const f = e.features[0];
-        const id = String(f.id ?? f.properties?.LINK ?? '');
+        const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
         if (!id) return;
         toggleSelection(id);
         highlightActive(id);
@@ -355,8 +287,8 @@ map.on('load', async () => {
 
 document.getElementById('clear-selection').addEventListener('click', () => {
     selectedIds.clear();
-    map.setFilter('default-selected-fill', ['in', ['get', 'LINK'], ['literal', []]]);
-    map.setFilter('active-bg-highlight', ['==', 'LINK', '___none___']);
+    map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
     updateShowDataButton();
@@ -364,8 +296,10 @@ document.getElementById('clear-selection').addEventListener('click', () => {
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
-    const pop = document.getElementById('population-filter');
-    if (pop && pop.checked) buildDataBox();
+    const f = getActiveFilter()
+    if (!f) return
+    if (f === 'population-filter') buildPopulationBox()
+    else buildPlaceholderBox(filterLabels[f])
 });
 
 document.getElementById('close-data-box').addEventListener('click', () => {
