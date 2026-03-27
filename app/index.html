@@ -117,6 +117,50 @@ rel="stylesheet">
 </div>
 
         <button id="drawer-toggle" class="drawer-handle">About The Team</button>
+        <div id="filters-drawer-panel" class="filters-drawer-panel">
+    <div class="filters-header">
+        <h2>Filters</h2>
+        </div>
+    
+        <div class="filters-drawer-content">
+            <div class="filters">
+                <label class="filter-option">
+                    <input type="checkbox" id="food-filter">
+                    Food
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="housesize-filter">
+                    Household Size
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="race-filter">
+                    Race
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="population-filter">
+                    Population
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="health-filter">
+                    Health
+                </label>
+                    
+                <label class="filter-option">
+                    <input type="checkbox" id="income-filter">
+                    Income
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <button id="filters-drawer-toggle" class="filters-drawer-handle">
+        Filters
+    </button>
+        
 
         <aside class="sidebar">
 
@@ -134,37 +178,32 @@ rel="stylesheet">
                 <img src="static/spartywhite3.png" class="status-icon right-logo cced-logo">
             </div>
 
-            <h3>Filters</h3>
-
-            <div class="filters">
-                <label class="filter-option">
-                    <input type="checkbox" id="food-filter">
-                    Food
+            <hr style="margin:20px 0; height:5px; background:#84cc16; border:none;">
+            <div class="display-method-section">
+            <h3>Choose your data display method:</h3>
+        
+            <div class="display-methods">
+                <label class="display-option" for="swl-display">
+                    <input type="radio" name="display-method" id="swl-display" checked>
+                    Southwest Lansing
                 </label>
-
-                <label class="filter-option">
-                    <input type="checkbox" id="housesize-filter">
-                    Household Size
+        
+                <label class="display-option">
+                    <input type="radio" name="display-method" id="neighborhoods-display">
+                    Neighborhoods
                 </label>
-
-                <label class="filter-option">
-                    <input type="checkbox" id="race-filter">
-                    Race
+        
+                <label class="display-option">
+                    <input type="radio" name="display-method" id="zipcodes-display">
+                    Zip Codes
                 </label>
-
-                <label class="filter-option">
-                    <input type="checkbox" id="population-filter">
-                    Population
-                </label>
-
-                <label class="filter-option">
-                    <input type="checkbox" id="bgdesc-filter">
-                    Block Group Descriptions
+        
+                <label class="display-option">
+                    <input type="radio" name="display-method" id="radius-display">
+                    Radius
                 </label>
             </div>
-
-            <hr style="margin:20px 0; height:5px; background:#84cc16; border:none;">
-            
+        </div>
             <div class="selected-header">
                 <h3>Selected Block Groups:</h3>
                 <button id="clear-selection" class="btn">Unselect All</button>

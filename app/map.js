@@ -23,8 +23,9 @@ const filterLabels = {
     'housesize-filter': 'Household Size',
     'race-filter': 'Race',
     'population-filter': 'Population',
-    'bgdesc-filter': 'Block Group Descriptions'
-}
+    'health-filter': 'Health',
+    'income-filter': 'Income'
+};
 
 //HELPER FUNCTIONS
 //standardizes ids from GEOID to match LINK from geojson
@@ -59,7 +60,7 @@ async function fetchArcgisRows(url) {
 
 //pull from txt file
 async function fetchRequestedBgs() {
-    const res = await fetch('/static/data/requested_bg.txt', { cache: 'no-store' });
+    const res = await fetch('static/data/requested_bg.txt', { cache: 'no-store' });
     if (!res.ok) return [];
     const text = await res.text();
     return text
@@ -115,6 +116,18 @@ function getActiveFilter(){
         const cb = document.getElementById(id)
         return cb && cb.checked
     })
+}
+function updateSelectedFilterText() {
+    const el = document.getElementById('selected-filter-display');
+    const active = getActiveFilter();
+
+    if (!el) return;
+
+    if (active) {
+        el.textContent = `Selected Filter: ${filterLabels[active]}`;
+    } else {
+        el.textContent = 'Selected Filter: None';
+    }
 }
 
 function updateShowDataButton() {
@@ -186,7 +199,24 @@ function highlightDataRow(id) {
         else tr.style.background = '';
     });
 }
+async function resetToSouthwestLansing() {
+    const ids = await fetchRequestedBgs();
+    console.log('reset ids:', ids);
 
+    selectedIds.clear();
+    activeId = null;
+
+    ids.forEach(id => selectedIds.add(String(id)));
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent = 'Click a polygon to view details.';
+}
 function setLoading(flag) {
     const btn = document.getElementById('reload');
     if (btn) {
@@ -310,24 +340,67 @@ const drawerToggle = document.getElementById('drawer-toggle');
 const drawerPanel = document.getElementById('drawer-panel');
 
 drawerToggle.addEventListener('click', () => {
+    const filtersHandle = document.getElementById('filters-drawer-toggle');
+
+    // if About is about to open, force Filters closed first
+    if (!drawerPanel.classList.contains('open')) {
+        filtersDrawerPanel.classList.remove('open');
+        filtersDrawerToggle.classList.remove('open');
+    }
+
     drawerPanel.classList.toggle('open');
     drawerToggle.classList.toggle('open');
+
+    if (drawerPanel.classList.contains('open')) {
+        filtersHandle.style.opacity = '0';
+        filtersHandle.style.pointerEvents = 'none';
+    } else {
+        filtersHandle.style.opacity = '1';
+        filtersHandle.style.pointerEvents = 'auto';
+    }
+});
+const filtersDrawerToggle = document.getElementById('filters-drawer-toggle');
+const filtersDrawerPanel = document.getElementById('filters-drawer-panel');
+const swlDisplay = document.getElementById('swl-display');
+
+swlDisplay.addEventListener('click', async () => {
+    await resetToSouthwestLansing();
+});
+filtersDrawerToggle.addEventListener('click', () => {
+    filtersDrawerPanel.classList.toggle('open');
+    filtersDrawerToggle.classList.toggle('open');
 });
 
-['food-filter', 'housesize-filter', 'race-filter', 'population-filter', 'bgdesc-filter'].forEach(id => {
+[
+    'food-filter',
+    'housesize-filter',
+    'race-filter',
+    'population-filter',
+    'health-filter',
+    'income-filter'
+].forEach(id => {
     const cb = document.getElementById(id);
     if (cb) {
         cb.addEventListener('change', () => {
-        if (cb.checked) {
-            ['food-filter', 'housesize-filter', 'race-filter', 'population-filter', 'bgdesc-filter'].forEach(other => {
-            if (other !== id) {
-                const o = document.getElementById(other);
-                if (o) o.checked = false;
+            if (cb.checked) {
+                [
+                    'food-filter',
+                    'housesize-filter',
+                    'race-filter',
+                    'population-filter',
+                    'health-filter',
+                    'income-filter'
+                ].forEach(other => {
+                    if (other !== id) {
+                        const o = document.getElementById(other);
+                        if (o) o.checked = false;
+                    }
+                });
             }
-            });
-        }
-        updateShowDataButton();
-        document.getElementById('data-box').style.display = 'none';
+
+            updateSelectedFilterText();   // ⭐ ADD THIS LINE
+            updateShowDataButton();
+            document.getElementById('data-box').style.display = 'none';
         });
     }
 });

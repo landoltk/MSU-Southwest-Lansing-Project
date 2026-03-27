@@ -39,6 +39,77 @@ html, body {
     overflow-y: auto;
 }
 
+.filters-drawer-panel {
+    position: absolute;
+    top: 320px;              /* sits below the About the Team tab */
+    left: 0;
+    width: 390px;
+    max-height: 320px;
+    background: white;
+    border: 5px solid #166534;
+    box-sizing: border-box;
+    padding: 0;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    z-index: 1;
+    overflow-y: auto;
+}
+
+/* how far the filters drawer slides out */
+.filters-drawer-panel.open {
+    transform: translateX(-390px);
+}
+
+/* tab that says Filters */
+.filters-drawer-handle {
+    position: absolute;
+    top: 320px;
+    left: -42px;
+    width: 42px;
+    height: 140px;
+    background: #166534;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    border-radius: 10px 0 0 10px;
+    z-index: 6;
+    transition: left 0.3s ease;
+}
+
+.filters-drawer-handle.open {
+    left: -432px;
+}
+
+.filters-header h2 {
+    padding: 12px 18px 16px 18px;
+    border-bottom: 5px solid #3FA34D;
+    margin: 0 0 10px 0;
+    text-align: center;
+    font-family: "Playfair Display", serif;
+}
+
+.filters-drawer-content {
+    padding: 16px 18px 18px 18px;
+}
+
+.filters-drawer-content .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    margin-top: 10px;
+}
+
+.filters-drawer-content .filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+}
 /* About the Team drawer pannel formatting */
 .drawer-panel {
     position: absolute;
@@ -335,4 +406,26 @@ html, body {
 
 .close-data-btn:hover {
     opacity: 0.7;
+}
+.display-method-section {
+    margin-top: 18px;
+}
+
+.display-method-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.display-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+}
+
+.display-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
 }
