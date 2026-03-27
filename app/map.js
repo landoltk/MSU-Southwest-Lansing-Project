@@ -12,6 +12,7 @@ const arcgisBlockGroups = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/r
 const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0'
 const populationACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/PopulationACS/FeatureServer/0/query?where=1=1&outFields=GEO_ID,B01003_001E&f=json'
 const raceACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/RaceACS/FeatureServer/0/query?where=1=1&outFields=*&f=csv'
+const communityGardens = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/Community_Garden_Parcels/FeatureServer/0/query?where=1=1&outFields=*&f=geojson&outSR=4326'
 
 let activeId = null;
 const selectedIds = new Set();
@@ -206,6 +207,7 @@ map.on('load', async () => {
     try {
         const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
+        map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
 
         map.addLayer({
         id: 'bg-fill',
@@ -236,6 +238,22 @@ map.on('load', async () => {
         paint: { 'fill-color': '#fde68a', 'fill-opacity': 0.4 },
         filter: ['==', 'JOINKEY12', '___none___']
         });
+
+        map.addLayer({
+            id: 'community-gardens-fill',
+            type: 'fill',
+            source: 'community-gardens',
+            paint: { 'fill-color': '#5fe653', 'fill-opacity': 0.6},
+            layout: {visibility: 'none'}
+        })
+
+        map.addLayer({
+            id: 'community-gardens-outline',
+            type: 'line',
+            source: 'community-gardens',
+            paint: {'line-color': '#45ac3b','line-width': 1},
+            layout: {visibility: 'none'}
+        })
 
         //on hover LINK display for troubleshooting
         /*
@@ -298,8 +316,15 @@ document.getElementById('clear-selection').addEventListener('click', () => {
 document.getElementById('show-data-btn').addEventListener('click', () => {
     const f = getActiveFilter()
     if (!f) return
-    if (f === 'population-filter') buildPopulationBox()
-    else buildPlaceholderBox(filterLabels[f])
+    if (f === 'population-filter') {
+        buildPopulationBox()
+    } else if (f === 'food-filter') {
+        map.setLayoutProperty('community-gardens-fill', 'visibility', 'visible')
+        map.setLayoutProperty('community-gardens-outline', 'visibility', 'visible')
+        buildPlaceholderBox(filterLabels[f])
+    } else {
+        buildPlaceholderBox(filterLabels[f])
+    }
 });
 
 document.getElementById('close-data-box').addEventListener('click', () => {
