@@ -56,7 +56,7 @@ pathlib==1.0.1
 <br>
 **App Installation Instructions Shareable Link:**
 
-https://jupyterhub.egr.msu.edu/hub/user-redirect/lab/tree/CMSE495read/MSU-Southwest-Lansing-Project/INSTALL.md
+<./INSTALL.md>
 <br>
 <br>
 

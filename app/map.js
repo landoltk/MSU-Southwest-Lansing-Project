@@ -165,7 +165,6 @@ function applyDefaultSelection(ids) {
     syncSelectedFill();
     renderSelectedList();
     updateShowDataButton()
-
 }
 
 //different filters data visualization boxes
