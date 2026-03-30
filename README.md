@@ -88,7 +88,7 @@ Waiting to implement:
 - Radius (Drawing a circle and having the block groups inside of the circle being selected)
 - Neighborhood data
   
-# Layer 1: Block Groups
+# Reproducing Layer 1: Block Groups
 
 **Block Group Color Meaning:**
 
