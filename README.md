@@ -105,19 +105,16 @@ A pretty simple, yet vitally important drawer to the project. To be mentioned be
 This is where we present our Thanks to the Community for Center and Economic Development. It is a great tab to give credit to those who made the project possible: the Southwest Lansing team and the CCED. Roles, Majors, and Contact Information of the team members can be found here
 
 **How to view the data:**
-As mentioned in the overview, the 22 block groups representing Southwest Lansing start selected. However, you will notice that the "Show data" tab is still grayed out on the right-hand side. In order to view the data, you must have a selected block group and a filter. You must open the "Filters" drawer attached to the sidebar and pick a filter of your choice. When the filter is selected, the Show data tab will turn blue indicating that you can now view data.
+As mentioned in the overview, the 22 block groups representing Southwest Lansing start selected. However, you will notice that the "Show data" tab is still grayed out on the right-hand side. In order to view the data, you must have a selected block group and click the "Submit Selection" button. This activates the filters in the "Filters" drawer which can then be selected which activates the "Show data" button. Once the filter of your choice is selected, the "Show data" button can be clicked which will display any relevant data available.
 
 After "Show data" was selected, the table of data will display beneath the button. There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
 
 **Data Cleanup and Other Useful Tools**
-Unselect All: This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect.
+Unselect All: This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect. This button is replaced with an "Edit Selection" button once selection has been submitted which will revert the app to selection mode.
 
 Block Group Hyperlinks: These links when clicked will highlight that block group on the graph. The selected block groups only appear in this list, so each hyperlink corresponds to a blue selected block group. The color of the block is Dim Yellow, and this does not select or deselect anything, the block group will appear in the data.
 
 Zoom Features: Above the "About the Team" bar, there is a bar with a "+", a "-", and a compass marker. The plus sign will zoom you in, while the minus sign will zoom you out. The compass marker, is supposed to be clicked and held as it rotates the map. The user can click and hold to rotate the map freely.
-
-
-
 
 
 # Contact the Creators
