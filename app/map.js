@@ -12,11 +12,13 @@ const arcgisBlockGroups = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/r
 const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0'
 const populationACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/PopulationACS/FeatureServer/0/query?where=1=1&outFields=GEO_ID,B01003_001E&f=json'
 const raceACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/RaceACS/FeatureServer/0/query?where=1=1&outFields=*&f=csv'
+const communityGardens = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/Community_Garden_Parcels/FeatureServer/0/query?where=1=1&outFields=*&f=geojson&outSR=4326'
 
 let activeId = null;
 const selectedIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
+let selectionLocked = false //mode boolean
 
 const filterLabels = {
     'food-filter': 'Food',
@@ -132,8 +134,7 @@ function updateSelectedFilterText() {
 
 function updateShowDataButton() {
     const btn = document.getElementById('show-data-btn');
-    const population = document.getElementById('population-filter');
-    btn.disabled = !(getActiveFilter() && selectedIds.size)
+    btn.disabled = !(selectionLocked && getActiveFilter() && selectedIds.size);
 }
 
 function syncSelectedFill() {
@@ -190,6 +191,16 @@ function buildPlaceholderBox(label){
     box.style.display = 'block'
 }
 
+function setCommunityGardensVisible(flag) {
+    const v = flag ? 'visible' : 'none';
+
+    if (map.getLayer('community-gardens-fill')) {
+        map.setLayoutProperty('community-gardens-fill', 'visibility', v);
+        map.setLayoutProperty('community-gardens-outline', 'visibility', v);
+    }
+}
+
+
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
@@ -229,12 +240,23 @@ function setStatus(msg) {
     if (el) el.textContent = msg;
 }
 
+//swap unselect all button with edit selection
+function syncSelectionModeUI() {
+    const btn = document.getElementById('clear-selection');
+    if (selectionLocked) {
+        btn.textContent = 'Edit Selection';
+    } else {
+        btn.textContent = 'Unselect All';
+    }
+}
+
 //LOADING FUNCTION
 map.on('load', async () => {
     setLoading(true);
     try {
         const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
+        map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
 
         map.addLayer({
         id: 'bg-fill',
@@ -266,6 +288,22 @@ map.on('load', async () => {
         filter: ['==', 'JOINKEY12', '___none___']
         });
 
+        map.addLayer({
+            id: 'community-gardens-fill',
+            type: 'fill',
+            source: 'community-gardens',
+            paint: { 'fill-color': '#5fe653', 'fill-opacity': 0.6},
+            layout: {visibility: 'none'}
+        })
+
+        map.addLayer({
+            id: 'community-gardens-outline',
+            type: 'line',
+            source: 'community-gardens',
+            paint: {'line-color': '#45ac3b','line-width': 1},
+            layout: {visibility: 'none'}
+        })
+
         //on hover LINK display for troubleshooting
         /*
         let hoverPopup = new maplibregl.Popup({ closeButton:false, closeOnClick:false });
@@ -294,18 +332,21 @@ map.on('load', async () => {
         });
 
         map.on('click', 'bg-fill', e => {
-        if (!e.features?.length) return;
-        const f = e.features[0];
-        const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
-        if (!id) return;
-        toggleSelection(id);
-        highlightActive(id);
-        updateShowDataButton();
+            if (!e.features?.length) return;
+            const f = e.features[0];
+            const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
+            if (!id) return;
+            if (!selectionLocked) {
+                toggleSelection(id);
+                highlightActive(id);
+                updateShowDataButton();
+            }
         });
 
         const ids = await fetchRequestedBgs();
         applyDefaultSelection(ids);
         setStatus(`Loaded ${ids.length} BG(s) from list`);
+        syncSelectionModeUI();
     } catch (e) {
         console.error(e);
         setStatus('Error loading data');
@@ -314,21 +355,52 @@ map.on('load', async () => {
     }
 });
 
+//Button Listeners
 document.getElementById('clear-selection').addEventListener('click', () => {
+    if (selectionLocked) {
+        selectionLocked = false;
+        setCommunityGardensVisible(false);
+        document.getElementById('data-box').style.display = 'none';
+        map.setFilter(
+        'default-selected-fill',
+        ['in', ['get', 'JOINKEY12'], ['literal', [...selectedIds]]]
+        );
+        syncSelectionModeUI();
+        updateShowDataButton();
+        return;
+    }
+
     selectedIds.clear();
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
     updateShowDataButton();
-    document.getElementById('details').textContent = 'Click a polygon to view details.';
+});
+
+document.getElementById('submit-selection').addEventListener('click', () => {
+    if (!selectedIds.size) return;
+    selectionLocked = true;
+    map.setFilter(
+        'default-selected-fill',
+        ['in', ['get', 'JOINKEY12'], ['literal', [...selectedIds]]]
+    );
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    syncSelectionModeUI();
+    updateShowDataButton();
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
     const f = getActiveFilter()
     if (!f) return
-    if (f === 'population-filter') buildPopulationBox()
-    else buildPlaceholderBox(filterLabels[f])
+    if (f === 'population-filter') {
+        buildPopulationBox()
+    } else if (f === 'food-filter') {
+        setCommunityGardensVisible(true);
+        buildPlaceholderBox(filterLabels[f]);
+    } else {
+        buildPlaceholderBox(filterLabels[f])
+    }
 });
 
 document.getElementById('close-data-box').addEventListener('click', () => {
@@ -381,25 +453,25 @@ filtersDrawerToggle.addEventListener('click', () => {
     const cb = document.getElementById(id);
     if (cb) {
         cb.addEventListener('change', () => {
-            if (cb.checked) {
-                [
-                    'food-filter',
-                    'housesize-filter',
-                    'race-filter',
-                    'population-filter',
-                    'health-filter',
-                    'income-filter'
-                ].forEach(other => {
-                    if (other !== id) {
-                        const o = document.getElementById(other);
-                        if (o) o.checked = false;
-                    }
-                });
-            }
+        if (!selectionLocked) {
+            cb.checked = false;
+            return;
+        }
 
-            updateSelectedFilterText();   // ⭐ ADD THIS LINE
-            updateShowDataButton();
-            document.getElementById('data-box').style.display = 'none';
+        if (cb.checked) {
+            ['food-filter', 'housesize-filter', 'race-filter', 'population-filter', 'bgdesc-filter']
+            .forEach(other => {
+                if (other !== id) {
+                const o = document.getElementById(other);
+                if (o) o.checked = false;
+                }
+            });
+        }
+
+        updateSelectedFilterText();
+        setCommunityGardensVisible(false);
+        document.getElementById('data-box').style.display = 'none';
+        updateShowDataButton();
         });
     }
 });
