@@ -62,7 +62,7 @@ pathlib==1.0.1
 # App Reproducibility
 
 **Initial app overview:**
-When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
+To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
 
 **Current Working Filters:**
 
@@ -107,7 +107,7 @@ This is where we present our Thanks to the Community for Center and Economic Dev
 **How to view the data:**
 As mentioned in the overview, the 22 block groups representing Southwest Lansing start selected. However, you will notice that the "Show data" tab is still grayed out on the right-hand side. In order to view the data, you must have a selected block group and click the "Submit Selection" button. This activates the filters in the "Filters" drawer which can then be selected which activates the "Show data" button. Once the filter of your choice is selected, the "Show data" button can be clicked which will display any relevant data available.
 
-After "Show data" was selected, the table of data will display beneath the button. There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
+After "Submit selection" was selected, the "Show data" button will highlight blue. After clicking this, a data table will drop below There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
 
 **Data Cleanup and Other Useful Tools**
 - **Unselect All:**
