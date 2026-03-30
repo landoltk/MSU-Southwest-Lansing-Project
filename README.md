@@ -56,8 +56,7 @@ pathlib==1.0.1
 <br>
 **App Installation Instructions Shareable Link:**
 
-<./INSTALL.md>
-<br>
+[INSTALL.md](./INSTALL.md)
 <br>
 
 # App Reproducibility
