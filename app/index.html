@@ -159,9 +159,26 @@ rel="stylesheet">
     
     <button id="filters-drawer-toggle" class="filters-drawer-handle">
         Filters
-    </button>
-        
-
+        </button>
+               <div id="demo-drawer-panel" class="demo-drawer-panel">
+                <div class="demo-header">
+                    <h2>App Demonstration</h2>
+                </div>
+            
+                <div class="demo-drawer-content">
+                    <p>Watch how the app works:</p>
+            
+                    <a href="https://michiganstate.sharepoint.com/:v:/s/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/IQAHOiGqXb7DTLhUoLPM53q5ASNbF7zFKoUlcDQwD6v0tZI?e=KzlmKz&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D"
+                       target="_blank"
+                       class="btn">
+                        Watch App Demo
+                    </a>
+                </div>
+            </div>
+            
+            <button id="demo-drawer-toggle" class="demo-drawer-handle">
+                App Demo
+            </button>
         <aside class="sidebar">
 
             <div class="sidebar-header">
@@ -180,30 +197,33 @@ rel="stylesheet">
 
             <hr style="margin:20px 0; height:5px; background:#84cc16; border:none;">
             <div class="display-method-section">
-            <h3>Choose your data display method:</h3>
-        
-            <div class="display-methods">
-                <label class="display-option" for="swl-display">
-                    <input type="radio" name="display-method" id="swl-display" checked>
-                    Southwest Lansing
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="neighborhoods-display">
-                    Neighborhoods
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="zipcodes-display">
-                    Zip Codes
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="radius-display">
-                    Radius
-                </label>
+    <div class="display-method-header">
+        <h3>Choose your data display method:</h3>
+        <button id="reset-swl" class="btn">S.W.L Reset</button>
+                </div>
+            
+                <div class="display-methods">
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="neighborhoods-display">
+                        Neighborhoods
+                    </label>
+                
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="zipcodes-display">
+                        Zip Codes
+                    </label>
+                
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="radius-display">
+                        Radius
+                    </label>
+
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="radius-display">
+                        Block Level
+                    </label>
+                </div>
             </div>
-        </div>
             <div class="selected-header">
                 <h3>Selected Block Groups:</h3>
                 <button id="clear-selection" class="btn">Unselect All</button>
@@ -213,13 +233,19 @@ rel="stylesheet">
             <hr class="section-bar">
             
             <div class="filter-data-row" style="margin-top:10px;">
-                <p id="selected-filter-display" class="muted" style="margin:0 0 10px 0;">
+                
+                <p id="selected-filter-display" class="muted" style="margin:0 0 6px 0;">
                     Selected Filter: None
                 </p>
+            
+                <button id="reset-last-selection" class="btn" disabled>
+                    Reset to Last Selection
+                </button>
             
                 <button id="show-data-btn" class="btn" disabled>
                     Show data
                 </button>
+            
             </div>
             
             <div id="data-box" class="data-box" style="display:none;">

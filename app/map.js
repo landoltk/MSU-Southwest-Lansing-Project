@@ -18,7 +18,8 @@ let activeId = null;
 const selectedIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
-let selectionLocked = false //mode boolean
+let selectionLocked = false
+let lastSubmittedIds = [];
 
 const filterLabels = {
     'food-filter': 'Food',
@@ -377,9 +378,13 @@ document.getElementById('clear-selection').addEventListener('click', () => {
     document.getElementById('data-box').style.display = 'none';
     updateShowDataButton();
 });
-
 document.getElementById('submit-selection').addEventListener('click', () => {
     if (!selectedIds.size) return;
+
+    lastSubmittedIds = [...selectedIds];
+
+    document.getElementById('reset-last-selection').disabled = false;
+
     selectionLocked = true;
     map.setFilter(
         'default-selected-fill',
@@ -388,6 +393,22 @@ document.getElementById('submit-selection').addEventListener('click', () => {
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     syncSelectionModeUI();
     updateShowDataButton();
+});
+document.getElementById('reset-last-selection').addEventListener('click', () => {
+    if (!lastSubmittedIds.length) return;
+
+    selectedIds.clear();
+    lastSubmittedIds.forEach(id => selectedIds.add(String(id)));
+
+    activeId = null;
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent = 'Click a polygon to view details.';
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
@@ -410,36 +431,65 @@ document.getElementById('close-data-box').addEventListener('click', () => {
 const drawerToggle = document.getElementById('drawer-toggle');
 const drawerPanel = document.getElementById('drawer-panel');
 
-drawerToggle.addEventListener('click', () => {
-    const filtersHandle = document.getElementById('filters-drawer-toggle');
 
-    // if About is about to open, force Filters closed first
-    if (!drawerPanel.classList.contains('open')) {
-        filtersDrawerPanel.classList.remove('open');
-        filtersDrawerToggle.classList.remove('open');
-    }
-
-    drawerPanel.classList.toggle('open');
-    drawerToggle.classList.toggle('open');
-
-    if (drawerPanel.classList.contains('open')) {
-        filtersHandle.style.opacity = '0';
-        filtersHandle.style.pointerEvents = 'none';
-    } else {
-        filtersHandle.style.opacity = '1';
-        filtersHandle.style.pointerEvents = 'auto';
-    }
-});
 const filtersDrawerToggle = document.getElementById('filters-drawer-toggle');
 const filtersDrawerPanel = document.getElementById('filters-drawer-panel');
-const swlDisplay = document.getElementById('swl-display');
 
-swlDisplay.addEventListener('click', async () => {
-    await resetToSouthwestLansing();
+const demoDrawerToggle = document.getElementById('demo-drawer-toggle');
+const demoDrawerPanel = document.getElementById('demo-drawer-panel');
+
+function closeAllDrawers() {
+    drawerPanel.classList.remove('open');
+    drawerToggle.classList.remove('open');
+
+    filtersDrawerPanel.classList.remove('open');
+    filtersDrawerToggle.classList.remove('open');
+
+    demoDrawerPanel.classList.remove('open');
+    demoDrawerToggle.classList.remove('open');
+}
+
+function switchDrawer(panel, toggle) {
+    const isAlreadyOpen = panel.classList.contains('open');
+
+    closeAllDrawers();
+
+    if (!isAlreadyOpen) {
+        setTimeout(() => {
+            panel.classList.add('open');
+            toggle.classList.add('open');
+        }, 300);
+    }
+}
+
+drawerToggle.addEventListener('click', () => {
+    switchDrawer(drawerPanel, drawerToggle);
 });
+
 filtersDrawerToggle.addEventListener('click', () => {
-    filtersDrawerPanel.classList.toggle('open');
-    filtersDrawerToggle.classList.toggle('open');
+    switchDrawer(filtersDrawerPanel, filtersDrawerToggle);
+});
+
+demoDrawerToggle.addEventListener('click', () => {
+    switchDrawer(demoDrawerPanel, demoDrawerToggle);
+});
+const displayCheckboxes = document.querySelectorAll('.display-checkbox');
+const resetSwlBtn = document.getElementById('reset-swl');
+
+displayCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+        if (cb.checked) {
+            displayCheckboxes.forEach(other => {
+                if (other !== cb) {
+                    other.checked = false;
+                }
+            });
+        }
+    });
+});
+
+resetSwlBtn.addEventListener('click', async () => {
+    await resetToSouthwestLansing();
 });
 
 [
