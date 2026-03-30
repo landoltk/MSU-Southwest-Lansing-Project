@@ -101,7 +101,7 @@ Waiting to implement:
 - **Filters:**
 A pretty simple, yet vitally important drawer to the project. To be mentioned below, no data can be shown without a filter present. The data is in checkbox form, but only one can be selected at a time. When this one is selected, you can check the main bar to see "Selected filter: blank" so that you don't have to open the filters tab to always see your active filter.
 
--**About the Team:**
+- **About the Team:**
 This is where we present our Thanks to the Community for Center and Economic Development. It is a great tab to give credit to those who made the project possible: the Southwest Lansing team and the CCED. Roles, Majors, and Contact Information of the team members can be found here
 
 **How to view the data:**
