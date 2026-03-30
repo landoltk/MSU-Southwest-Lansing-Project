@@ -110,11 +110,14 @@ As mentioned in the overview, the 22 block groups representing Southwest Lansing
 After "Show data" was selected, the table of data will display beneath the button. There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
 
 **Data Cleanup and Other Useful Tools**
-Unselect All: This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect. This button is replaced with an "Edit Selection" button once selection has been submitted which will revert the app to selection mode.
+- **Unselect All:**
+This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect. This button is replaced with an "Edit Selection" button once selection has been submitted which will revert the app to selection mode.
 
-Block Group Hyperlinks: These links when clicked will highlight that block group on the graph. The selected block groups only appear in this list, so each hyperlink corresponds to a blue selected block group. The color of the block is Dim Yellow, and this does not select or deselect anything, the block group will appear in the data.
+- **Block Group Hyperlinks:**
+These links when clicked will highlight that block group on the graph. The selected block groups only appear in this list, so each hyperlink corresponds to a blue selected block group. The color of the block is Dim Yellow, and this does not select or deselect anything, the block group will appear in the data.
 
-Zoom Features: Above the "About the Team" bar, there is a bar with a "+", a "-", and a compass marker. The plus sign will zoom you in, while the minus sign will zoom you out. The compass marker, is supposed to be clicked and held as it rotates the map. The user can click and hold to rotate the map freely.
+- **Zoom Features:**
+Above the "About the Team" bar, there is a bar with a "+", a "-", and a compass marker. The plus sign will zoom you in, while the minus sign will zoom you out. The compass marker, is supposed to be clicked and held as it rotates the map. The user can click and hold to rotate the map freely.
 
 
 # Contact the Creators
