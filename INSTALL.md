@@ -7,9 +7,9 @@ Requirements:
 <br>Use pip install to install the required libraries
 <br>
 <br>To run the app locally enter the app directory using the following command:
-<br>'''cd app'''
+<br>```cd app```
 <br>Then run the following command to start the app: 
-<br>'''uvicorn main:app --reload'''
+<br>```uvicorn main:app --reload```
 <br>
 <br>To build the app using Render.com
 <br>Utilize this repo or create a fork
