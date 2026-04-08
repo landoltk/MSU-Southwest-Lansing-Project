@@ -9,23 +9,16 @@ map.addControl(new maplibregl.NavigationControl());
 
 //arcGIS URLs
 const arcgisBlockGroups = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/2020_Michigan_BGs/FeatureServer/0/query?where=COUNTYFP%20IN%20(65,45,37)&outFields=*&f=geojson&outSR=4326';
-const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0/query?where=COUNTYFP20%20IN%20(65,45,37)&outFields=*&f=geojson&outSR=4326'
+const arcgisBlocks = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/tl_2025_26_tabblock20/FeatureServer/0/query?where=1=1&outFields=*&f=geojson&outSR=4326'
 const populationACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/PopulationACS/FeatureServer/0/query?where=1=1&outFields=GEO_ID,B01003_001E&f=json'
 const raceACS = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/RaceACS/FeatureServer/0/query?where=1=1&outFields=*&f=csv'
 const communityGardens = 'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/Community_Garden_Parcels/FeatureServer/0/query?where=1=1&outFields=*&f=geojson&outSR=4326'
 
 let activeId = null;
 const selectedIds = new Set();
-const selectedBlockIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
-
-const SelectionMode = {
-    BG_SELECT: 'bg-select',
-    BLOCK_SELECT: 'block-select',
-    LOCKED: 'locked-select'
-};
-let selectionMode = SelectionMode.BG_SELECT;
+let selectionLocked = false //mode boolean
 
 const filterLabels = {
     'food-filter': 'Food',
@@ -37,75 +30,24 @@ const filterLabels = {
 };
 
 //HELPER FUNCTIONS
-//id standardization
-function key12FromBgGEOID(geoid) {
-    const d = String(geoid ?? '').replace(/\D/g, '')
-    return d.length === 12 ? d : null
-}
+//standardizes ids from GEOID to match LINK from geojson
+function key12FromAcs(geoId){const d=String(geoId??'').replace(/\D/g,'');return d.slice(-12)||null}
+function key12FromLink(link){const d=String(link??'').replace(/\D/g,'').slice(-9);if(d.length!==9)return null;const c2=d.slice(0,2),t6=d.slice(2,8),b1=d.slice(8);return '26'+c2.padStart(3,'0')+t6+b1}
 
-function key12FromBlockGEOID(geoid20) {
-    const d = String(geoid20 ?? '').replace(/\D/g, '')
-    return d.length === 15 ? d.slice(0, 12) : null
-}
-
-function key12FromAcs(geoId) {
-    const d = String(geoId ?? '').replace(/\D/g, '')
-    return d.length >= 12 ? d.slice(-12) : null
-}
-
-//adds standard joinkey to block geojson
-function attachJoinKeyToBlocks(blockGeojson) {
-    for (const f of blockGeojson.features ?? []) {
-        const p = f.properties ?? {}
-        const k = key12FromBlockGEOID(p.GEOID20)
-        if (k) p.JOINKEY12 = k
-    }
-}
-
-//dynamic request for block level data
-async function loadBlocksForSelectedBgs() {
-    const where = [...selectedIds]
-        .map(k => `GEOID20 LIKE '${k}%'`)
-        .join(' OR ')
-    const url =
-        'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/' +
-        'tl_2025_26_tabblock20/FeatureServer/0/query' +
-        `?where=${encodeURIComponent(where)}&outFields=*&f=geojson&outSR=4326`
-    const blocks = await fetch(url).then(r => r.json())
-    attachJoinKeyToBlocks(blocks)
-    map.getSource('blocks').setData(blocks)
-    return blocks
-}
-
-async function joinAcsToBgs(acsUrl, bgUrl) {
-    const [acs, bg] = await Promise.all([
-        fetch(acsUrl).then(r => r.json()).then(j =>
-        (j.features ?? []).map(f => f.attributes ?? {})
-        ),
-        fetch(bgUrl).then(r => r.json())
+async function joinAcsToBgs(acsUrl,bgUrl){
+    const [acs,bg]=await Promise.all([
+        fetch(acsUrl).then(r=>r.json()).then(j=>(j.features||[]).map(f=>f.attributes||{})),
+        fetch(bgUrl).then(r=>r.json())
     ])
-
-    const acsMap = new Map()
-    for (const r of acs) {
-        const k = key12FromAcs(r.GEO_ID)
-        if (k) acsMap.set(k, r)
+    const m=new Map()
+    for(const r of acs){const k=key12FromAcs(r.GEO_ID);if(k)m.set(k,r)}
+    for(const f of (bg.features||[])){
+        const p=f.properties||{}
+        const k=key12FromLink(p.LINK);if(!k)continue
+        p.JOINKEY12=k
+        idToName.set(k,String(p.NAME??k))
+        const row=m.get(k);if(row){idToRow.set(k,row);p.csv_B01003_001E=row.B01003_001E}
     }
-
-    for (const f of (bg.features ?? [])) {
-        const p = f.properties ?? {}
-        const k = key12FromBgGEOID(p.GEOID)
-        if (!k) continue
-
-        p.JOINKEY12 = k
-        idToName.set(k, p.NAME ?? k)
-
-        const row = acsMap.get(k)
-        if (row) {
-        idToRow.set(k, row)
-        p.csv_B01003_001E = row.B01003_001E
-        }
-    }
-
     return bg
 }
 
@@ -130,12 +72,9 @@ async function fetchRequestedBgs() {
 }
 
 function parseBgLabel(name) {
-    const s = String(name ?? '');
+    const s = String(name);
     if (!s.length) return { tract: s, bg: s };
-    return {
-        tract: s.slice(5, -1),
-        bg: s.slice(-1)
-    };
+    return { tract: s.slice(0, -1), bg: s.slice(-1) };
 }
 
 //renders selected id list
@@ -147,7 +86,7 @@ function renderSelectedList() {
     }
 
     const items = [...selectedIds].map(id => {
-        const name = idToName.get(id) ?? id;
+        const name = idToName.get(id) || id;
         const p = parseBgLabel(name);
         const label = p.tract && p.bg ? `Tract ${p.tract}, BG ${p.bg}` : name;
         return `
@@ -173,7 +112,7 @@ function renderSelectedList() {
     });
 }
 
-//filters logic
+//data button logic
 function getActiveFilter(){
     return Object.keys(filterLabels).find(id => {
         const cb = document.getElementById(id)
@@ -193,14 +132,9 @@ function updateSelectedFilterText() {
     }
 }
 
-//data button logic
 function updateShowDataButton() {
     const btn = document.getElementById('show-data-btn');
-    btn.disabled = !(
-        selectionMode === SelectionMode.LOCKED &&
-        getActiveFilter() &&
-        selectedIds.size
-    );
+    btn.disabled = !(selectionLocked && getActiveFilter() && selectedIds.size);
 }
 
 function syncSelectedFill() {
@@ -208,14 +142,6 @@ function syncSelectedFill() {
         'in',
         ['get', 'JOINKEY12'],
         ['literal', [...selectedIds]]
-    ]);
-}
-
-function syncBlockSelectedFill() {
-    map.setFilter('block-selected', [
-        'in',
-        ['get', 'GEOID20'],
-        ['literal', [...selectedBlockIds]]
     ]);
 }
 
@@ -274,6 +200,7 @@ function setCommunityGardensVisible(flag) {
     }
 }
 
+
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
@@ -316,82 +243,20 @@ function setStatus(msg) {
 //swap unselect all button with edit selection
 function syncSelectionModeUI() {
     const btn = document.getElementById('clear-selection');
-
-    if (
-        selectionMode === SelectionMode.BLOCK_SELECT ||
-        selectionMode === SelectionMode.LOCKED
-    ) {
+    if (selectionLocked) {
         btn.textContent = 'Edit Selection';
     } else {
         btn.textContent = 'Unselect All';
     }
 }
 
-//selection mode helper
-async function setSelectionMode(mode) {
-    selectionMode = mode
-    syncSelectionModeUI()
-
-    if (mode === SelectionMode.BG_SELECT) {
-        map.setLayoutProperty('bg-fill', 'visibility', 'visible')
-        map.setLayoutProperty('bg-outline', 'visibility', 'visible')
-        map.setLayoutProperty('default-selected-fill', 'visibility', 'visible')
-        map.setLayoutProperty('active-bg-highlight', 'visibility', 'visible')
-        map.setLayoutProperty('block-fill', 'visibility', 'none')
-        map.setLayoutProperty('block-outline', 'visibility', 'none')
-        map.setLayoutProperty('block-selected', 'visibility', 'none')
-        selectedBlockIds.clear()
-        updateShowDataButton()
-        return
-    }
-
-    if (mode === SelectionMode.BLOCK_SELECT) {
-        const blocks = await loadBlocksForSelectedBgs()
-        selectedBlockIds.clear()
-        for (const f of blocks.features ?? []) {
-        const id = String(f.properties?.GEOID20)
-        if (id) selectedBlockIds.add(id)
-        }
-        map.setLayoutProperty('bg-fill', 'visibility', 'none')
-        map.setLayoutProperty('bg-outline', 'visibility', 'none')
-        map.setLayoutProperty('default-selected-fill', 'visibility', 'none')
-        map.setLayoutProperty('active-bg-highlight', 'visibility', 'none')
-        map.setLayoutProperty('block-fill', 'visibility', 'visible')
-        map.setLayoutProperty('block-outline', 'visibility', 'visible')
-        map.setLayoutProperty('block-selected', 'visibility', 'visible')
-        syncBlockSelectedFill()
-        updateShowDataButton()
-        return
-    }
-
-    if (mode === SelectionMode.LOCKED) {
-        updateShowDataButton()
-    }
-}
-
+//LOADING FUNCTION
 map.on('load', async () => {
     setLoading(true);
     try {
         const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
-        
-        map.addSource('arcgis-layer', {
-            type: 'geojson',
-            data,
-            promoteId: 'JOINKEY12'
-        });
-
-        map.addSource('community-gardens', {
-            type: 'geojson',
-            data: communityGardens
-        });
-
-        map.addSource('blocks', {
-            type: 'geojson',
-            data: {
-                type: 'FeatureCollection',
-                features: []
-            }
-        });
+        map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
+        map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
 
         map.addLayer({
         id: 'bg-fill',
@@ -422,41 +287,6 @@ map.on('load', async () => {
         paint: { 'fill-color': '#fde68a', 'fill-opacity': 0.4 },
         filter: ['==', 'JOINKEY12', '___none___']
         });
-
-        map.addLayer({
-            id: 'block-fill',
-            type: 'fill',
-            source: 'blocks',
-            paint: {
-                'fill-color': '#2b8a3e',
-                'fill-opacity': 0.25
-            },
-            layout: { visibility: 'none' }
-        });
-
-        map.addLayer({
-            id: 'block-outline',
-            type: 'line',
-            source: 'blocks',
-            paint: {
-                'line-color': '#c2410c',
-                'line-width': 0.5
-            },
-            layout: { visibility: 'none' }
-        });
-
-        map.addLayer({
-            id: 'block-selected',
-            type: 'fill',
-            source: 'blocks',
-            paint: {
-                'fill-color': '#f97316',
-                'fill-opacity': 0.5
-            },
-            layout: { visibility: 'none' },
-            filter: ['in', ['get', 'GEOID20'], ['literal', []]]
-        });
-
 
         map.addLayer({
             id: 'community-gardens-fill',
@@ -501,26 +331,17 @@ map.on('load', async () => {
             map.getCanvas().style.cursor = '';
         });
 
-        //bg on-click
         map.on('click', 'bg-fill', e => {
-            if (selectionMode !== SelectionMode.BG_SELECT) return;
             if (!e.features?.length) return;
-
-            const id = String(e.features[0].properties.JOINKEY12);
-            toggleSelection(id);
-            highlightActive(id);
+            const f = e.features[0];
+            const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
+            if (!id) return;
+            if (!selectionLocked) {
+                toggleSelection(id);
+                highlightActive(id);
+                updateShowDataButton();
+            }
         });
-
-        //block on-click
-        map.on('click', 'block-fill', e => {
-            if (selectionMode !== SelectionMode.BLOCK_SELECT) return
-            if (!e.features?.length) return
-            const id = String(e.features[0].properties.GEOID20)
-            if (selectedBlockIds.has(id)) selectedBlockIds.delete(id)
-            else selectedBlockIds.add(id)
-            syncBlockSelectedFill()
-        });
-
 
         const ids = await fetchRequestedBgs();
         applyDefaultSelection(ids);
@@ -535,41 +356,38 @@ map.on('load', async () => {
 });
 
 //Button Listeners
-document.getElementById('clear-selection').addEventListener('click', async () => {
-    if (
-        selectionMode === SelectionMode.BLOCK_SELECT ||
-        selectionMode === SelectionMode.LOCKED
-    ) {
-        await setSelectionMode(SelectionMode.BG_SELECT)
-        setCommunityGardensVisible(false)
-        document.getElementById('data-box').style.display = 'none'
+document.getElementById('clear-selection').addEventListener('click', () => {
+    if (selectionLocked) {
+        selectionLocked = false;
+        setCommunityGardensVisible(false);
+        document.getElementById('data-box').style.display = 'none';
         map.setFilter(
         'default-selected-fill',
         ['in', ['get', 'JOINKEY12'], ['literal', [...selectedIds]]]
-        )
-        updateShowDataButton()
-        return
+        );
+        syncSelectionModeUI();
+        updateShowDataButton();
+        return;
     }
 
-    selectedIds.clear()
-    map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]])
-    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___'])
-    renderSelectedList()
-    document.getElementById('data-box').style.display = 'none'
-    updateShowDataButton()
+    selectedIds.clear();
+    map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    renderSelectedList();
+    document.getElementById('data-box').style.display = 'none';
+    updateShowDataButton();
 });
 
 document.getElementById('submit-selection').addEventListener('click', () => {
-    if (selectionMode === SelectionMode.BG_SELECT) {
-        if (!selectedIds.size) return
-        setSelectionMode(SelectionMode.BLOCK_SELECT)
-        return
-    }
-
-    if (selectionMode === SelectionMode.BLOCK_SELECT) {
-        if (!selectedBlockIds.size) return
-        setSelectionMode(SelectionMode.LOCKED)
-    }
+    if (!selectedIds.size) return;
+    selectionLocked = true;
+    map.setFilter(
+        'default-selected-fill',
+        ['in', ['get', 'JOINKEY12'], ['literal', [...selectedIds]]]
+    );
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    syncSelectionModeUI();
+    updateShowDataButton();
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
@@ -635,7 +453,7 @@ filtersDrawerToggle.addEventListener('click', () => {
     const cb = document.getElementById(id);
     if (cb) {
         cb.addEventListener('change', () => {
-        if (selectionMode !== SelectionMode.LOCKED) {
+        if (!selectionLocked) {
             cb.checked = false;
             return;
         }
