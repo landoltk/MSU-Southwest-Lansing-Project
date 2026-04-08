@@ -120,7 +120,7 @@ html, body {
     background: white;
     border: 5px solid #166534;
     box-sizing: border-box;
-    padding: 20px 18px;
+    padding: 0;
     transform: translateX(0);
     transition: transform 0.3s ease;
     z-index: 1;
@@ -442,10 +442,10 @@ html, body {
 }
 .demo-drawer-panel {
     position: absolute;
-    top: 480px;
+    top: 0;
     left: 0;
     width: 390px;
-    max-height: 320px;
+    height: calc(100% + 10px);
     background: white;
     border: 5px solid #166534;
     box-sizing: border-box;
@@ -521,6 +521,7 @@ html, body {
 .drawer-panel.open ~ .demo-drawer-handle {
     left: -432px;
 }
+
 .filter-info-row {
     display: flex;
     align-items: center;

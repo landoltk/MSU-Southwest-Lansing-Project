@@ -22,6 +22,8 @@ let selectionLocked = false
 let lastSubmittedIds = [];
 let selectionMode = 'block'; // 'block' or 'neighborhood'
 const selectedNeighborhoods = new Set();
+let blockGroupGeojson = null;
+let lastRadiusCircle = null;
 
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
@@ -106,7 +108,40 @@ async function joinAcsToBgs(acsUrl,bgUrl){
     }
     return bg
 }
+async function joinRaceToBgs(bgGeojson) {
+    const raceRows = await fetchRaceRows();
+    const raceMap = new Map();
 
+    for (const r of raceRows) {
+        const key =
+            String(r.state) +
+            String(r.county) +
+            String(r.tract) +
+            String(r["block group"]);
+
+        raceMap.set(key, r);
+    }
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+        const k = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!k) continue;
+
+        const row = raceMap.get(k);
+        if (!row) continue;
+
+        p.race_total = Number(row.B02001_001E) || 0;
+        p.race_white = Number(row.B02001_002E) || 0;
+        p.race_black = Number(row.B02001_003E) || 0;
+        p.race_native = Number(row.B02001_004E) || 0;
+        p.race_asian = Number(row.B02001_005E) || 0;
+        p.race_pacific = Number(row.B02001_006E) || 0;
+        p.race_other = Number(row.B02001_007E) || 0;
+        p.race_two_plus = Number(row.B02001_008E) || 0;
+    }
+
+    return bgGeojson;
+}
 async function fetchArcgisRows(url) {
     const r = await fetch(url);
     const j = await r.json();
@@ -125,6 +160,20 @@ async function fetchRequestedBgs() {
         .split(/\r?\n/)
         .map(s => key12FromLink(s))
         .filter(Boolean);
+}
+async function fetchRaceRows() {
+    const res = await fetch('static/data/race_data.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not load race_data.json');
+    const raw = await res.json();
+
+    const headers = raw[0];
+    return raw.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            obj[h] = row[i];
+        });
+        return obj;
+    });
 }
 
 function parseBgLabel(name) {
@@ -200,7 +249,90 @@ function renderSelectedList() {
         };
     });
 }
+function getDisplayMode() {
+    if (document.getElementById('radius-display')?.checked) return 'radius';
+    if (document.getElementById('neighborhoods-display')?.checked) return 'neighborhoods';
+    if (document.getElementById('zipcodes-display')?.checked) return 'zipcodes';
+    if (document.getElementById('block-display')?.checked) return 'block';
+    return 'swl';
+}
 
+function updateDisplayMethodUI() {
+    const radiusControls = document.getElementById('radius-controls');
+    const neighborhoodControls = document.getElementById('neighborhood-controls');
+    const details = document.getElementById('details');
+
+    const mode = getDisplayMode();
+
+    if (radiusControls) {
+        radiusControls.style.display = mode === 'radius' ? 'block' : 'none';
+    }
+
+    if (neighborhoodControls) {
+        neighborhoodControls.style.display = mode === 'neighborhoods' ? 'block' : 'none';
+    }
+
+    if (details) {
+        if (mode === 'radius') {
+            details.textContent = 'Radius mode: click anywhere on the map to select block groups within the radius.';
+        } else if (mode === 'neighborhoods') {
+            details.textContent = 'Neighborhood mode: click a white neighborhood to select its block groups.';
+        } else {
+            details.textContent = 'Click a polygon to view details.';
+        }
+    }
+}
+
+function clearRadiusCircle() {
+    lastRadiusCircle = null;
+
+    if (map.getSource('radius-circle')) {
+        map.getSource('radius-circle').setData({
+            type: 'FeatureCollection',
+            features: []
+        });
+    }
+}
+
+function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
+    if (!blockGroupGeojson || !map.getSource('radius-circle')) return;
+    if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
+
+    const circle = turf.circle([centerLngLat.lng, centerLngLat.lat], radiusMiles, {
+        steps: 64,
+        units: 'miles'
+    });
+
+    lastRadiusCircle = circle;
+    map.getSource('radius-circle').setData(circle);
+
+    selectedIds.clear();
+
+    for (const feature of (blockGroupGeojson.features || [])) {
+        const id = String(feature.properties?.JOINKEY12 ?? feature.id ?? '');
+        if (!id) continue;
+
+        try {
+            if (turf.booleanIntersects(feature, circle)) {
+                selectedIds.add(id);
+            }
+        } catch (err) {
+            console.warn('Intersection check failed for feature:', id, err);
+        }
+    }
+
+    activeId = null;
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    const details = document.getElementById('details');
+    if (details) {
+        details.textContent = `Radius selection complete: ${selectedIds.size} block group(s) selected within ${radiusMiles} mile(s).`;
+    }
+}
 //data button logic
 function getActiveFilter(){
     return Object.keys(filterLabels).find(id => {
@@ -328,6 +460,51 @@ function buildPopulationBox() {
                 <tr>
                     <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
                     <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
+}
+function buildRaceBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rowsHtml = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+
+        return `
+            <tr>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_white ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_black ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_asian ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_two_plus ?? 0}</td>
+            </tr>
+        `;
+    }).join('');
+
+    content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Two+</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -543,9 +720,10 @@ async function resetToSouthwestLansing() {
     updateShowDataButton();
 
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
-
+    clearRadiusCircle();
     document.getElementById('data-box').style.display = 'none';
     document.getElementById('details').textContent = 'Click a polygon to view details.';
+    updateDisplayMethodUI();
 }
 function setLoading(flag) {
     const btn = document.getElementById('reload');
@@ -574,9 +752,13 @@ function syncSelectionModeUI() {
 map.on('load', async () => {
     setLoading(true);
     try {
-        const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
+        let data = await joinAcsToBgs(populationACS, arcgisBlockGroups);
+        data = await joinRaceToBgs(data);
+        blockGroupGeojson = data;
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
         map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
+        map.addSource('radius-circle', {type: 'geojson',data: {type: 'FeatureCollection',features: []}
+});
 
         map.addLayer({
         id: 'bg-fill',
@@ -634,6 +816,25 @@ map.on('load', async () => {
             paint: {'line-color': '#45ac3b','line-width': 1},
             layout: {visibility: 'none'}
         })
+        map.addLayer({
+            id: 'radius-circle-fill',
+            type: 'fill',
+            source: 'radius-circle',
+            paint: {
+                'fill-color': '#60a5fa',
+                'fill-opacity': 0.15
+            }
+        });
+        
+        map.addLayer({
+            id: 'radius-circle-outline',
+            type: 'line',
+            source: 'radius-circle',
+            paint: {
+                'line-color': '#2563eb',
+                'line-width': 2
+            }
+        });
 
         //on hover LINK display for troubleshooting
         /*
@@ -664,6 +865,7 @@ map.on('load', async () => {
 
         map.on('click', 'bg-fill', e => {
             if (!e.features?.length) return;
+            if (getDisplayMode() === 'radius') return;
         
             const f = e.features[0];
             const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
@@ -685,6 +887,20 @@ map.on('load', async () => {
                 highlightActive(id);
                 updateShowDataButton();
             }
+        });
+        map.on('click', e => {
+            if (selectionLocked) return;
+            if (getDisplayMode() !== 'radius') return;
+        
+            const radiusInput = document.getElementById('radius-input');
+            const radiusMiles = Number(radiusInput?.value || 1);
+        
+            if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) {
+                alert('Please enter a valid radius greater than 0.');
+                return;
+            }
+        
+            selectBlockGroupsByRadius(e.lngLat, radiusMiles);
         });
 
         const ids = await fetchRequestedBgs();
@@ -731,6 +947,7 @@ document.getElementById('clear-selection').addEventListener('click', () => {
     selectedIds.clear();
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    clearRadiusCircle();
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
     updateShowDataButton();
@@ -797,6 +1014,8 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
         } else {
             buildPopulationBox();
         }
+    } else if (f === 'race-filter') {
+        buildRaceBox();
     } else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
         buildPlaceholderBox(filterLabels[f]);
@@ -839,6 +1058,10 @@ function switchDrawer(panel, toggle) {
         setTimeout(() => {
             panel.classList.add('open');
             toggle.classList.add('open');
+            if (toggle === demoDrawerToggle) {
+                drawerToggle.classList.add('open');
+                filtersDrawerToggle.classList.add('open');
+            }
         }, 300);
     }
 }
@@ -865,11 +1088,48 @@ displayCheckboxes.forEach(cb => {
                     other.checked = false;
                 }
             });
+
+            // leaving neighborhood mode when switching away from it
+            if (cb.id !== 'neighborhoods-display' && selectionMode === 'neighborhood') {
+                exitNeighborhoodMode();
+            }
+
+            // clear radius circle when switching away from radius
+            if (cb.id !== 'radius-display') {
+                clearRadiusCircle();
+            }
         }
+
+        updateDisplayMethodUI();
     });
 });
-const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
+const radiusCheckbox = document.getElementById('radius-display');
+const zipcodesCheckbox = document.getElementById('zipcodes-display');
+const blockCheckbox = document.getElementById('block-display');
 
+if (radiusCheckbox) {
+    radiusCheckbox.addEventListener('change', () => {
+        updateDisplayMethodUI();
+        if (!radiusCheckbox.checked) {
+            clearRadiusCircle();
+        }
+    });
+}
+
+if (zipcodesCheckbox) {
+    zipcodesCheckbox.addEventListener('change', () => {
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+
+if (blockCheckbox) {
+    blockCheckbox.addEventListener('change', () => {
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
 if (neighborhoodsCheckbox) {
     neighborhoodsCheckbox.addEventListener('change', () => {
         if (neighborhoodsCheckbox.checked) {
@@ -877,8 +1137,12 @@ if (neighborhoodsCheckbox) {
         } else {
             exitNeighborhoodMode();
         }
+
+        clearRadiusCircle();
+        updateDisplayMethodUI();
     });
 }
+updateDisplayMethodUI();
 resetSwlBtn.addEventListener('click', async () => {
     await resetToSouthwestLansing();
 });
