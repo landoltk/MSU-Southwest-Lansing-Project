@@ -18,7 +18,65 @@ let activeId = null;
 const selectedIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
-let selectionLocked = false //mode boolean
+let selectionLocked = false
+let lastSubmittedIds = [];
+let selectionMode = 'block'; // 'block' or 'neighborhood'
+const selectedNeighborhoods = new Set();
+let blockGroupGeojson = null;
+let lastRadiusCircle = null;
+
+const neighborhoodToBgs = {
+    "Coachlight Neighborhood Association": [
+        "260650051002"
+    ],
+
+    "Wexford Heights Neighborhood Association": [
+        "260650051003"
+    ],
+
+    "Churchill Downs Community Association": [
+        "260650036011",
+        "260650036012",
+        "260650036013"
+    ],
+
+    "Averill Woods Neighborhood Association": [
+        "260650017032"
+    ],
+
+    "Wood-Mere Neighborhood Organization": [
+        "260650017033"
+    ],
+
+    "Lewton Rich Neighborhood Association": [
+        "260650017031"
+    ],
+
+    "Riverview Estates Neighbors United": [
+        "260650017031"
+    ],
+
+    "Colonial Village Neighborhood": [
+        "260650070004",
+        "260650070005",
+        "260650037005"
+    ]
+};
+const bgToNeighborhoods = new Map();
+
+function buildBgToNeighborhoods() {
+    Object.entries(neighborhoodToBgs).forEach(([neighborhood, ids]) => {
+        ids.forEach(id => {
+            const key = String(id);
+            if (!bgToNeighborhoods.has(key)) {
+                bgToNeighborhoods.set(key, []);
+            }
+            bgToNeighborhoods.get(key).push(neighborhood);
+        });
+    });
+}
+
+buildBgToNeighborhoods();
 
 const filterLabels = {
     'food-filter': 'Food',
@@ -50,7 +108,40 @@ async function joinAcsToBgs(acsUrl,bgUrl){
     }
     return bg
 }
+async function joinRaceToBgs(bgGeojson) {
+    const raceRows = await fetchRaceRows();
+    const raceMap = new Map();
 
+    for (const r of raceRows) {
+        const key =
+            String(r.state) +
+            String(r.county) +
+            String(r.tract) +
+            String(r["block group"]);
+
+        raceMap.set(key, r);
+    }
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+        const k = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!k) continue;
+
+        const row = raceMap.get(k);
+        if (!row) continue;
+
+        p.race_total = Number(row.B02001_001E) || 0;
+        p.race_white = Number(row.B02001_002E) || 0;
+        p.race_black = Number(row.B02001_003E) || 0;
+        p.race_native = Number(row.B02001_004E) || 0;
+        p.race_asian = Number(row.B02001_005E) || 0;
+        p.race_pacific = Number(row.B02001_006E) || 0;
+        p.race_other = Number(row.B02001_007E) || 0;
+        p.race_two_plus = Number(row.B02001_008E) || 0;
+    }
+
+    return bgGeojson;
+}
 async function fetchArcgisRows(url) {
     const r = await fetch(url);
     const j = await r.json();
@@ -70,6 +161,20 @@ async function fetchRequestedBgs() {
         .map(s => key12FromLink(s))
         .filter(Boolean);
 }
+async function fetchRaceRows() {
+    const res = await fetch('static/data/race_data.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not load race_data.json');
+    const raw = await res.json();
+
+    const headers = raw[0];
+    return raw.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            obj[h] = row[i];
+        });
+        return obj;
+    });
+}
 
 function parseBgLabel(name) {
     const s = String(name);
@@ -80,6 +185,38 @@ function parseBgLabel(name) {
 //renders selected id list
 function renderSelectedList() {
     const list = document.getElementById('selected-list');
+
+    if (selectionMode === 'neighborhood') {
+        if (!selectedNeighborhoods.size) {
+            list.innerHTML = 'None';
+            return;
+        }
+
+        const items = [...selectedNeighborhoods].map(name => `
+            <li>
+                <a href="#" class="neighborhood-link" data-name="${name}">
+                    ${name}
+                </a>
+            </li>
+        `);
+
+        list.innerHTML = `
+            <ul style="margin:8px 0 0 18px; padding:0;">
+                ${items.join('')}
+            </ul>
+        `;
+
+        document.querySelectorAll('.neighborhood-link').forEach(a => {
+            a.onclick = e => {
+                e.preventDefault();
+                const name = a.getAttribute('data-name');
+                highlightNeighborhood(name);
+            };
+        });
+
+        return;
+    }
+
     if (!selectedIds.size) {
         list.innerHTML = 'None';
         return;
@@ -89,10 +226,11 @@ function renderSelectedList() {
         const name = idToName.get(id) || id;
         const p = parseBgLabel(name);
         const label = p.tract && p.bg ? `Tract ${p.tract}, BG ${p.bg}` : name;
+
         return `
         <li>
             <a href="#" class="bg-link" data-id="${id}">
-            ${label}
+                ${label} (${id})
             </a>
         </li>`;
     });
@@ -104,14 +242,97 @@ function renderSelectedList() {
 
     document.querySelectorAll('.bg-link').forEach(a => {
         a.onclick = e => {
-        e.preventDefault();
-        const id = String(a.getAttribute('data-id'));
-        highlightActive(id);
-        highlightDataRow(id);
+            e.preventDefault();
+            const id = String(a.getAttribute('data-id'));
+            highlightActive(id);
+            highlightDataRow(id);
         };
     });
 }
+function getDisplayMode() {
+    if (document.getElementById('radius-display')?.checked) return 'radius';
+    if (document.getElementById('neighborhoods-display')?.checked) return 'neighborhoods';
+    if (document.getElementById('zipcodes-display')?.checked) return 'zipcodes';
+    if (document.getElementById('block-display')?.checked) return 'block';
+    return 'swl';
+}
 
+function updateDisplayMethodUI() {
+    const radiusControls = document.getElementById('radius-controls');
+    const neighborhoodControls = document.getElementById('neighborhood-controls');
+    const details = document.getElementById('details');
+
+    const mode = getDisplayMode();
+
+    if (radiusControls) {
+        radiusControls.style.display = mode === 'radius' ? 'block' : 'none';
+    }
+
+    if (neighborhoodControls) {
+        neighborhoodControls.style.display = mode === 'neighborhoods' ? 'block' : 'none';
+    }
+
+    if (details) {
+        if (mode === 'radius') {
+            details.textContent = 'Radius mode: click anywhere on the map to select block groups within the radius.';
+        } else if (mode === 'neighborhoods') {
+            details.textContent = 'Neighborhood mode: click a white neighborhood to select its block groups.';
+        } else {
+            details.textContent = 'Click a polygon to view details.';
+        }
+    }
+}
+
+function clearRadiusCircle() {
+    lastRadiusCircle = null;
+
+    if (map.getSource('radius-circle')) {
+        map.getSource('radius-circle').setData({
+            type: 'FeatureCollection',
+            features: []
+        });
+    }
+}
+
+function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
+    if (!blockGroupGeojson || !map.getSource('radius-circle')) return;
+    if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
+
+    const circle = turf.circle([centerLngLat.lng, centerLngLat.lat], radiusMiles, {
+        steps: 64,
+        units: 'miles'
+    });
+
+    lastRadiusCircle = circle;
+    map.getSource('radius-circle').setData(circle);
+
+    selectedIds.clear();
+
+    for (const feature of (blockGroupGeojson.features || [])) {
+        const id = String(feature.properties?.JOINKEY12 ?? feature.id ?? '');
+        if (!id) continue;
+
+        try {
+            if (turf.booleanIntersects(feature, circle)) {
+                selectedIds.add(id);
+            }
+        } catch (err) {
+            console.warn('Intersection check failed for feature:', id, err);
+        }
+    }
+
+    activeId = null;
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    const details = document.getElementById('details');
+    if (details) {
+        details.textContent = `Radius selection complete: ${selectedIds.size} block group(s) selected within ${radiusMiles} mile(s).`;
+    }
+}
 //data button logic
 function getActiveFilter(){
     return Object.keys(filterLabels).find(id => {
@@ -144,6 +365,24 @@ function syncSelectedFill() {
         ['literal', [...selectedIds]]
     ]);
 }
+function syncNeighborhoodBaseFill() {
+    const neighborhoodIds = [...new Set(
+        Object.values(neighborhoodToBgs).flat().map(String)
+    )];
+
+    map.setFilter('neighborhood-base-fill', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', neighborhoodIds]
+    ]);
+}
+function clearNeighborhoodBaseFill() {
+    map.setFilter('neighborhood-base-fill', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', []]
+    ]);
+}
 
 function toggleSelection(id) {
     const key = String(id);
@@ -169,19 +408,163 @@ function applyDefaultSelection(ids) {
 }
 
 //different filters data visualization boxes
-function buildPopulationBox(){
-    const box=document.getElementById('data-box');
-    const content=document.getElementById('data-box-content')
-    if(!selectedIds.size){box.style.display='none';return}
-    const rowsHtml=[...selectedIds].map(id=>{
-        const name=idToName.get(id)||id
-        const row=idToRow.get(id)||{}
-        const raw=row['B01003_001E']
-        const val=Number.isFinite(Number(raw))?Number(raw).toLocaleString():(raw??'')
-        return `<tr data-id="${id}"><td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${val}</td></tr>`
-    }).join('')
-    content.innerHTML=`<table style="border-collapse:collapse;width:100%"><thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
-    box.style.display='block'
+function buildPopulationBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    let groupTotal = 0;
+
+    const rows = [...selectedIds].map(id => {
+        const name = idToName.get(id) || id;
+        const row = idToRow.get(id) || {};
+        const raw = row['B01003_001E'];
+        const val = Number(raw);
+
+        const total = Number.isFinite(val) ? val : 0;
+        groupTotal += total;
+
+        return {
+            name,
+            total
+        };
+    });
+
+    const rowsHtml = `
+        <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">
+                Group Total
+            </td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+                ${groupTotal.toLocaleString()}
+            </td>
+        </tr>
+    ` + rows.map(({ name, total }) => `
+        <tr>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${name}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${total.toLocaleString()}
+            </td>
+        </tr>
+    `).join('');
+
+    content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
+}
+function buildRaceBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rowsHtml = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+
+        return `
+            <tr>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_white ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_black ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_asian ?? 0}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_two_plus ?? 0}</td>
+            </tr>
+        `;
+    }).join('');
+
+    content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Two+</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
+}
+function buildNeighborhoodPopulationBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedNeighborhoods.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    let groupTotal = 0;
+
+    const rows = [...selectedNeighborhoods].map(name => {
+        const total = getNeighborhoodPopulation(name);
+        groupTotal += total;
+    
+        return { name, total };
+    });
+    
+    const rowsHtml = `
+        <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">
+                Group Total
+            </td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+                ${groupTotal.toLocaleString()}
+            </td>
+        </tr>
+    ` +
+    rows.map(({ name, total }) => `
+        <tr data-name="${name}">
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${name}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${total.toLocaleString()}
+            </td>
+        </tr>
+    `).join('');
+
+    content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Neighborhood</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
 }
 
 function buildPlaceholderBox(label){
@@ -190,7 +573,121 @@ function buildPlaceholderBox(label){
     content.innerHTML = `<h4>${label}</h4><p>Data coming soon.</p>`
     box.style.display = 'block'
 }
+function selectAllNeighborhoods() {
+    selectionMode = 'neighborhood';
 
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    activeId = null;
+    selectionLocked = false;
+
+    syncNeighborhoodBaseFill();   // white neighborhood BGs
+    syncSelectedFill();           // no blue selection yet
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+    renderSelectedList();
+    updateShowDataButton();
+
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent =
+        'Click a white neighborhood block group to select its neighborhood(s).';
+}
+
+function exitNeighborhoodMode() {
+    selectionMode = 'block';
+
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    activeId = null;
+    selectionLocked = false;
+
+    clearNeighborhoodBaseFill();
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent = 'Click a polygon to view details.';
+}
+
+function highlightNeighborhood(name) {
+    const ids = (neighborhoodToBgs[name] || []).map(String);
+
+    map.setFilter('active-bg-highlight', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', ids]
+    ]);
+
+    document.getElementById('details').textContent =
+        `${name}: ${ids.length} block group(s) highlighted.`;
+}
+function selectNeighborhoodsFromBg(bgId) {
+    const id = String(bgId);
+    const neighborhoods = bgToNeighborhoods.get(id) || [];
+
+    if (!neighborhoods.length) {
+        document.getElementById('details').textContent =
+            `No neighborhood mapping found for block group ${id}.`;
+        return;
+    }
+
+    // Check whether this clicked BG is already part of the current blue selection
+    const isAlreadySelected = selectedIds.has(id);
+
+    if (isAlreadySelected) {
+        // Remove all neighborhoods associated with this clicked BG
+        neighborhoods.forEach(name => selectedNeighborhoods.delete(name));
+    } else {
+        // Add all neighborhoods associated with this clicked BG
+        neighborhoods.forEach(name => selectedNeighborhoods.add(name));
+    }
+
+    // Rebuild selectedIds from the currently selected neighborhoods
+    selectedIds.clear();
+    selectedNeighborhoods.forEach(name => {
+        (neighborhoodToBgs[name] || []).forEach(bg => {
+            selectedIds.add(String(bg));
+        });
+    });
+
+    syncNeighborhoodBaseFill();
+    syncSelectedFill();
+
+    if (selectedIds.has(id)) {
+        map.setFilter('active-bg-highlight', [
+            '==',
+            'JOINKEY12',
+            id
+        ]);
+    } else {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    }
+
+    renderSelectedList();
+    updateShowDataButton();
+
+    document.getElementById('details').textContent =
+        `${selectedNeighborhoods.size} neighborhood(s) selected.`;
+}
+function getNeighborhoodPopulation(neighborhoodName) {
+    const ids = neighborhoodToBgs[neighborhoodName] || [];
+
+    let total = 0;
+
+    ids.forEach(id => {
+        const row = idToRow.get(String(id)) || {};
+        const raw = row['B01003_001E'];
+        const num = Number(raw);
+
+        if (Number.isFinite(num)) {
+            total += num;
+        }
+    });
+
+    return total;
+}
 function setCommunityGardensVisible(flag) {
     const v = flag ? 'visible' : 'none';
 
@@ -223,9 +720,10 @@ async function resetToSouthwestLansing() {
     updateShowDataButton();
 
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
-
+    clearRadiusCircle();
     document.getElementById('data-box').style.display = 'none';
     document.getElementById('details').textContent = 'Click a polygon to view details.';
+    updateDisplayMethodUI();
 }
 function setLoading(flag) {
     const btn = document.getElementById('reload');
@@ -254,9 +752,13 @@ function syncSelectionModeUI() {
 map.on('load', async () => {
     setLoading(true);
     try {
-        const data=await joinAcsToBgs(populationACS,arcgisBlockGroups)
+        let data = await joinAcsToBgs(populationACS, arcgisBlockGroups);
+        data = await joinRaceToBgs(data);
+        blockGroupGeojson = data;
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
         map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
+        map.addSource('radius-circle', {type: 'geojson',data: {type: 'FeatureCollection',features: []}
+});
 
         map.addLayer({
         id: 'bg-fill',
@@ -270,6 +772,16 @@ map.on('load', async () => {
         type: 'line',
         source: 'arcgis-layer',
         paint: { 'line-color': '#166534', 'line-width': 1 }
+        });
+        map.addLayer({
+        id: 'neighborhood-base-fill',
+        type: 'fill',
+        source: 'arcgis-layer',
+        paint: {
+            'fill-color': '#ffffff',
+            'fill-opacity': 0.65
+        },
+        filter: ['in', ['get', 'JOINKEY12'], ['literal', []]]
         });
 
         map.addLayer({
@@ -287,6 +799,7 @@ map.on('load', async () => {
         paint: { 'fill-color': '#fde68a', 'fill-opacity': 0.4 },
         filter: ['==', 'JOINKEY12', '___none___']
         });
+        
 
         map.addLayer({
             id: 'community-gardens-fill',
@@ -303,6 +816,25 @@ map.on('load', async () => {
             paint: {'line-color': '#45ac3b','line-width': 1},
             layout: {visibility: 'none'}
         })
+        map.addLayer({
+            id: 'radius-circle-fill',
+            type: 'fill',
+            source: 'radius-circle',
+            paint: {
+                'fill-color': '#60a5fa',
+                'fill-opacity': 0.15
+            }
+        });
+        
+        map.addLayer({
+            id: 'radius-circle-outline',
+            type: 'line',
+            source: 'radius-circle',
+            paint: {
+                'line-color': '#2563eb',
+                'line-width': 2
+            }
+        });
 
         //on hover LINK display for troubleshooting
         /*
@@ -333,14 +865,42 @@ map.on('load', async () => {
 
         map.on('click', 'bg-fill', e => {
             if (!e.features?.length) return;
+            if (getDisplayMode() === 'radius') return;
+        
             const f = e.features[0];
             const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
             if (!id) return;
+        
+            if (selectionMode === 'neighborhood') {
+                const neighborhoodIds = new Set(
+                    Object.values(neighborhoodToBgs).flat().map(String)
+                );
+        
+                if (neighborhoodIds.has(id)) {
+                    selectNeighborhoodsFromBg(id);
+                }
+                return;
+            }
+        
             if (!selectionLocked) {
                 toggleSelection(id);
                 highlightActive(id);
                 updateShowDataButton();
             }
+        });
+        map.on('click', e => {
+            if (selectionLocked) return;
+            if (getDisplayMode() !== 'radius') return;
+        
+            const radiusInput = document.getElementById('radius-input');
+            const radiusMiles = Number(radiusInput?.value || 1);
+        
+            if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) {
+                alert('Please enter a valid radius greater than 0.');
+                return;
+            }
+        
+            selectBlockGroupsByRadius(e.lngLat, radiusMiles);
         });
 
         const ids = await fetchRequestedBgs();
@@ -357,29 +917,48 @@ map.on('load', async () => {
 
 //Button Listeners
 document.getElementById('clear-selection').addEventListener('click', () => {
+    // Step 1: if selection is locked, clicking should ONLY unlock editing
     if (selectionLocked) {
         selectionLocked = false;
-        setCommunityGardensVisible(false);
-        document.getElementById('data-box').style.display = 'none';
-        map.setFilter(
-        'default-selected-fill',
-        ['in', ['get', 'JOINKEY12'], ['literal', [...selectedIds]]]
-        );
         syncSelectionModeUI();
         updateShowDataButton();
         return;
     }
 
+    // Step 2: neighborhood mode clear behavior
+    if (selectionMode === 'neighborhood') {
+        selectedIds.clear();
+        selectedNeighborhoods.clear();
+        activeId = null;
+
+        syncNeighborhoodBaseFill();
+        syncSelectedFill();
+        renderSelectedList();
+        updateShowDataButton();
+
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+        document.getElementById('data-box').style.display = 'none';
+        document.getElementById('details').textContent =
+            'Click a white neighborhood block group to select its neighborhood(s).';
+        return;
+    }
+
+    // Step 3: normal block mode clear behavior
     selectedIds.clear();
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    clearRadiusCircle();
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
     updateShowDataButton();
 });
-
 document.getElementById('submit-selection').addEventListener('click', () => {
     if (!selectedIds.size) return;
+
+    lastSubmittedIds = [...selectedIds];
+
+    document.getElementById('reset-last-selection').disabled = false;
+
     selectionLocked = true;
     map.setFilter(
         'default-selected-fill',
@@ -389,17 +968,59 @@ document.getElementById('submit-selection').addEventListener('click', () => {
     syncSelectionModeUI();
     updateShowDataButton();
 });
+document.getElementById('reset-last-selection').addEventListener('click', () => {
+    if (!lastSubmittedIds.length) return;
+
+    selectedIds.clear();
+    lastSubmittedIds.forEach(id => selectedIds.add(String(id)));
+
+    activeId = null;
+
+    // If we're in neighborhood mode, rebuild selectedNeighborhoods
+    if (selectionMode === 'neighborhood') {
+        selectedNeighborhoods.clear();
+
+        lastSubmittedIds.forEach(id => {
+            const neighborhoods = bgToNeighborhoods.get(String(id)) || [];
+            neighborhoods.forEach(name => selectedNeighborhoods.add(name));
+        });
+
+        syncNeighborhoodBaseFill();
+    }
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    document.getElementById('data-box').style.display = 'none';
+
+    if (selectionMode === 'neighborhood') {
+        document.getElementById('details').textContent =
+            'Neighborhood selection restored.';
+    } else {
+        document.getElementById('details').textContent =
+            'Click a polygon to view details.';
+    }
+});
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
-    const f = getActiveFilter()
-    if (!f) return
+    const f = getActiveFilter();
+    if (!f) return;
+
     if (f === 'population-filter') {
-        buildPopulationBox()
+        if (selectionMode === 'neighborhood') {
+            buildNeighborhoodPopulationBox();
+        } else {
+            buildPopulationBox();
+        }
+    } else if (f === 'race-filter') {
+        buildRaceBox();
     } else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
         buildPlaceholderBox(filterLabels[f]);
     } else {
-        buildPlaceholderBox(filterLabels[f])
+        buildPlaceholderBox(filterLabels[f]);
     }
 });
 
@@ -410,36 +1031,120 @@ document.getElementById('close-data-box').addEventListener('click', () => {
 const drawerToggle = document.getElementById('drawer-toggle');
 const drawerPanel = document.getElementById('drawer-panel');
 
-drawerToggle.addEventListener('click', () => {
-    const filtersHandle = document.getElementById('filters-drawer-toggle');
 
-    // if About is about to open, force Filters closed first
-    if (!drawerPanel.classList.contains('open')) {
-        filtersDrawerPanel.classList.remove('open');
-        filtersDrawerToggle.classList.remove('open');
-    }
-
-    drawerPanel.classList.toggle('open');
-    drawerToggle.classList.toggle('open');
-
-    if (drawerPanel.classList.contains('open')) {
-        filtersHandle.style.opacity = '0';
-        filtersHandle.style.pointerEvents = 'none';
-    } else {
-        filtersHandle.style.opacity = '1';
-        filtersHandle.style.pointerEvents = 'auto';
-    }
-});
 const filtersDrawerToggle = document.getElementById('filters-drawer-toggle');
 const filtersDrawerPanel = document.getElementById('filters-drawer-panel');
-const swlDisplay = document.getElementById('swl-display');
 
-swlDisplay.addEventListener('click', async () => {
-    await resetToSouthwestLansing();
+const demoDrawerToggle = document.getElementById('demo-drawer-toggle');
+const demoDrawerPanel = document.getElementById('demo-drawer-panel');
+
+function closeAllDrawers() {
+    drawerPanel.classList.remove('open');
+    drawerToggle.classList.remove('open');
+
+    filtersDrawerPanel.classList.remove('open');
+    filtersDrawerToggle.classList.remove('open');
+
+    demoDrawerPanel.classList.remove('open');
+    demoDrawerToggle.classList.remove('open');
+}
+
+function switchDrawer(panel, toggle) {
+    const isAlreadyOpen = panel.classList.contains('open');
+
+    closeAllDrawers();
+
+    if (!isAlreadyOpen) {
+        setTimeout(() => {
+            panel.classList.add('open');
+            toggle.classList.add('open');
+            if (toggle === demoDrawerToggle) {
+                drawerToggle.classList.add('open');
+                filtersDrawerToggle.classList.add('open');
+            }
+        }, 300);
+    }
+}
+
+drawerToggle.addEventListener('click', () => {
+    switchDrawer(drawerPanel, drawerToggle);
 });
+
 filtersDrawerToggle.addEventListener('click', () => {
-    filtersDrawerPanel.classList.toggle('open');
-    filtersDrawerToggle.classList.toggle('open');
+    switchDrawer(filtersDrawerPanel, filtersDrawerToggle);
+});
+
+demoDrawerToggle.addEventListener('click', () => {
+    switchDrawer(demoDrawerPanel, demoDrawerToggle);
+});
+const displayCheckboxes = document.querySelectorAll('.display-checkbox');
+const resetSwlBtn = document.getElementById('reset-swl');
+
+displayCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+        if (cb.checked) {
+            displayCheckboxes.forEach(other => {
+                if (other !== cb) {
+                    other.checked = false;
+                }
+            });
+
+            // leaving neighborhood mode when switching away from it
+            if (cb.id !== 'neighborhoods-display' && selectionMode === 'neighborhood') {
+                exitNeighborhoodMode();
+            }
+
+            // clear radius circle when switching away from radius
+            if (cb.id !== 'radius-display') {
+                clearRadiusCircle();
+            }
+        }
+
+        updateDisplayMethodUI();
+    });
+});
+const radiusCheckbox = document.getElementById('radius-display');
+const zipcodesCheckbox = document.getElementById('zipcodes-display');
+const blockCheckbox = document.getElementById('block-display');
+
+if (radiusCheckbox) {
+    radiusCheckbox.addEventListener('change', () => {
+        updateDisplayMethodUI();
+        if (!radiusCheckbox.checked) {
+            clearRadiusCircle();
+        }
+    });
+}
+
+if (zipcodesCheckbox) {
+    zipcodesCheckbox.addEventListener('change', () => {
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+
+if (blockCheckbox) {
+    blockCheckbox.addEventListener('change', () => {
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
+if (neighborhoodsCheckbox) {
+    neighborhoodsCheckbox.addEventListener('change', () => {
+        if (neighborhoodsCheckbox.checked) {
+            selectAllNeighborhoods();
+        } else {
+            exitNeighborhoodMode();
+        }
+
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+updateDisplayMethodUI();
+resetSwlBtn.addEventListener('click', async () => {
+    await resetToSouthwestLansing();
 });
 
 [

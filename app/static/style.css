@@ -120,7 +120,7 @@ html, body {
     background: white;
     border: 5px solid #166534;
     box-sizing: border-box;
-    padding: 20px 18px;
+    padding: 0;
     transform: translateX(0);
     transition: transform 0.3s ease;
     z-index: 1;
@@ -428,4 +428,109 @@ html, body {
     align-items: center;
     gap: 6px;
     font-size: 16px;
+}
+.display-method-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.display-method-header h3 {
+    margin: 0;
+}
+.demo-drawer-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 390px;
+    height: calc(100% + 10px);
+    background: white;
+    border: 5px solid #166534;
+    box-sizing: border-box;
+    padding: 0;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    z-index: 1;
+    overflow-y: auto;
+}
+
+.demo-drawer-panel.open {
+    transform: translateX(-390px);
+}
+
+.demo-drawer-handle {
+    position: absolute;
+    top: 480px;
+    left: -42px;
+    width: 42px;
+    height: 170px;
+    background: #166534;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    border-radius: 10px 0 0 10px;
+    z-index: 6;
+    transition: left 0.3s ease;
+}
+
+.demo-drawer-handle.open {
+    left: -432px;
+}
+
+.demo-header h2 {
+    padding: 12px 18px 16px 18px;
+    border-bottom: 5px solid #3FA34D;
+    margin: 0 0 10px 0;
+    text-align: center;
+    font-family: "Playfair Display", serif;
+}
+
+.demo-drawer-content {
+    padding: 16px 18px 18px 18px;
+    line-height: 1.5;
+}
+
+.demo-drawer-content h3 {
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 8px;
+    font-family: "Playfair Display", serif;
+}
+.drawer-handle {
+    top: 160px;
+}
+
+.filters-drawer-handle {
+    top: 320px;
+}
+
+.demo-drawer-handle {
+    top: 480px;
+}
+.drawer-panel.open ~ .filters-drawer-handle {
+    left: -432px;
+}
+
+.drawer-panel.open ~ .demo-drawer-handle {
+    left: -432px;
+}
+
+.filter-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex: 1;
+}
+
+#reset-last-selection {
+    white-space: nowrap;
+    flex-shrink: 0;
 }

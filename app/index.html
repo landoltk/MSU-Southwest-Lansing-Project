@@ -26,10 +26,162 @@ rel="stylesheet">
 
         <div id="drawer-panel" class="drawer-panel">
     <div class="about-header">
-        <h2>Meet the 2026 Spring Southwest Lansing Team and our Community Partner!</h2>
+        <h2>App Reproducibility</h2>
     </div>
+             <div class="demo-drawer-content">
 
-    <div class="about-content">
+                    <h3>Initial App Overview</h3>
+                    <p>
+                        When the app loads, you will see an overview of Lansing displayed through green block groups.
+                        By default, the Southwest Lansing region is already selected and highlighted in blue,
+                        indicating that these block groups are active. You can press the <strong>"Southwest Lansing"</strong>
+                        button in the <strong>"Choose your data display method:"</strong> section to reselect all 22 block groups.
+                    </p>
+                
+                    <hr class="section-divider">
+                
+                    <h3>Current Working Features</h3>
+                
+                    <h4>Filters</h4>
+                    <p><strong>Working:</strong></p>
+                    <ul>
+                        <li><strong>Food:</strong> Displays community gardens in the immediate area</li>
+                        <li><strong>Population:</strong> Displays population data after submission</li>
+                    </ul>
+                
+                    <p><strong>In Progress:</strong></p>
+                    <ul>
+                        <li>Health</li>
+                        <li>Income</li>
+                        <li>Race</li>
+                        <li>Household descriptions</li>
+                    </ul>
+                
+                    <h4>Data Viewing Methods</h4>
+                    <p><strong>Working:</strong></p>
+                    <ul>
+                        <li><strong>Southwest Lansing:</strong> Automatically selects all Southwest Lansing block groups</li>
+                    </ul>
+                
+                    <p><strong>In Progress:</strong></p>
+                    <ul>
+                        <li>Zip Code selection</li>
+                        <li>Radius selection (drawing a circle to select block groups)</li>
+                        <li>Neighborhood-based selection</li>
+                    </ul>
+                
+                    <hr class="section-divider">
+                
+                    <h3>Layer 1: Block Groups</h3>
+                    <ul>
+                        <li><strong>Green:</strong> Not selected, excluded from data</li>
+                        <li><strong>Blue:</strong> Fully selected, included in data</li>
+                        <li><strong>Bright Yellow:</strong> Deselected and removed from selection</li>
+                        <li><strong>Dim Yellow:</strong> Selected and highlighted in displayed data</li>
+                    </ul>
+                
+                    <hr class="section-divider">
+                
+                    <h3>Drawer Descriptions</h3>
+                
+                    <p><strong>Filters:</strong><br>
+                        No data can be displayed without selecting a filter. Filters are checkboxes,
+                        but only one can be active at a time. The selected filter appears under
+                        <strong>"Selected Filter:"</strong> in the main panel.
+                    </p>
+                
+                    <p><strong>About the Team:</strong><br>
+                        This section highlights the Southwest Lansing Project team and recognizes
+                        the Center for Community and Economic Development (CCED). It includes roles,
+                        majors, and contact information.
+                    </p>
+                
+                    <hr class="section-divider">
+                
+                    <h3>How to View Data</h3>
+                    <ol>
+                        <li>Select block groups (or use the default selection)</li>
+                        <li>Click <strong>"Submit Selection"</strong></li>
+                        <li>Open the <strong>Filters</strong> drawer</li>
+                        <li>Select a filter</li>
+                        <li>Click <strong>"Show Data"</strong></li>
+                    </ol>
+                
+                    <p>
+                        A data table will appear below the button. You can close it anytime using the
+                        <strong>"X"</strong> in the top right. The table stays until closed or replaced.
+                    </p>
+                
+                    <hr class="section-divider">
+                
+                    <h3>Data Tools & Features</h3>
+                
+                    <p><strong>Unselect All / Edit Selection:</strong><br>
+                        Unselect All clears all selected groups. After submission, this becomes
+                        Edit Selection, allowing you to modify your selection.
+                    </p>
+                
+                    <p><strong>Block Group Hyperlinks:</strong><br>
+                        Displays selected groups only. Clicking highlights them in dim yellow without changing selection.
+                    </p>
+                
+                    <p><strong>Zoom Controls:</strong><br>
+                        + zooms in, – zooms out, and the compass allows rotation when clicked and dragged.
+                    </p>
+                
+                </div>
+            </div>
+
+        <button id="drawer-toggle" class="drawer-handle">Reproducibility</button>
+        <div id="filters-drawer-panel" class="filters-drawer-panel">
+    <div class="filters-header">
+        <h2>Filters</h2>
+        </div>
+    
+        <div class="filters-drawer-content">
+            <div class="filters">
+                <label class="filter-option">
+                    <input type="checkbox" id="food-filter">
+                    Food
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="housesize-filter">
+                    Household Size
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="race-filter">
+                    Race
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="population-filter">
+                    Population
+                </label>
+    
+                <label class="filter-option">
+                    <input type="checkbox" id="health-filter">
+                    Health
+                </label>
+                    
+                <label class="filter-option">
+                    <input type="checkbox" id="income-filter">
+                    Income
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <button id="filters-drawer-toggle" class="filters-drawer-handle">
+        Filters
+        </button>
+               <div id="demo-drawer-panel" class="demo-drawer-panel">
+                <div class="demo-header">
+                    <h2>Meet the 2026 Spring Southwest Lansing Team and our Community Partner!</h2>
+                </div>
+            
+                <div class="about-content">
         <div class="partner-thanks">
 
             <h3>Thank You to the Center for Community and Economic Development</h3>
@@ -115,53 +267,10 @@ rel="stylesheet">
         </div>
     </div>
 </div>
-
-        <button id="drawer-toggle" class="drawer-handle">About The Team</button>
-        <div id="filters-drawer-panel" class="filters-drawer-panel">
-    <div class="filters-header">
-        <h2>Filters</h2>
-        </div>
-    
-        <div class="filters-drawer-content">
-            <div class="filters">
-                <label class="filter-option">
-                    <input type="checkbox" id="food-filter">
-                    Food
-                </label>
-    
-                <label class="filter-option">
-                    <input type="checkbox" id="housesize-filter">
-                    Household Size
-                </label>
-    
-                <label class="filter-option">
-                    <input type="checkbox" id="race-filter">
-                    Race
-                </label>
-    
-                <label class="filter-option">
-                    <input type="checkbox" id="population-filter">
-                    Population
-                </label>
-    
-                <label class="filter-option">
-                    <input type="checkbox" id="health-filter">
-                    Health
-                </label>
-                    
-                <label class="filter-option">
-                    <input type="checkbox" id="income-filter">
-                    Income
-                </label>
-            </div>
-        </div>
-    </div>
-    
-    <button id="filters-drawer-toggle" class="filters-drawer-handle">
-        Filters
-    </button>
-        
-
+            
+            <button id="demo-drawer-toggle" class="demo-drawer-handle">
+                About
+            </button>
         <aside class="sidebar">
 
             <div class="sidebar-header">
@@ -180,46 +289,69 @@ rel="stylesheet">
 
             <hr style="margin:20px 0; height:5px; background:#84cc16; border:none;">
             <div class="display-method-section">
-            <h3>Choose your data display method:</h3>
-        
-            <div class="display-methods">
-                <label class="display-option" for="swl-display">
-                    <input type="radio" name="display-method" id="swl-display" checked>
-                    Southwest Lansing
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="neighborhoods-display">
-                    Neighborhoods
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="zipcodes-display">
-                    Zip Codes
-                </label>
-        
-                <label class="display-option">
-                    <input type="radio" name="display-method" id="radius-display">
-                    Radius
-                </label>
-            </div>
-        </div>
-            <div class="selected-header">
-                <h3>Selected Block Groups:</h3>
-                <button id="clear-selection" class="btn">Unselect All</button>
-                <button id="submit-selection" class="btn">Submit Selection</button>
-            </div>
+                <div class="display-method-header">
+                    <h3>Choose your data display method:</h3>
+                    <button id="reset-swl" class="btn">S.W.L Reset</button>
+                </div>
+                
+                <div class="display-methods">
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="neighborhoods-display">
+                        Neighborhoods
+                    </label>
+                
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="zipcodes-display">
+                        Zip Codes
+                    </label>
+                
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="radius-display">
+                        Radius
+                    </label>
+                
+                    <label class="display-option">
+                        <input type="checkbox" class="display-checkbox" id="block-display">
+                        Block Level
+                    </label>
+                </div>
+                
+                <div id="radius-controls" style="display:none; margin-top:10px;">
+                    <label for="radius-input"><strong>Radius (miles):</strong></label>
+                    <input type="number" id="radius-input" min="0.1" step="0.1" value="1" style="width:80px; margin-left:8px;">
+                    <p id="radius-instructions" style="margin-top:6px; font-size:13px; color:#555;">
+                    Choose a radius then click any point on the map
+                    </p>
+                </div>
+                <div id="neighborhood-controls" style="display:none; margin-top:10px;">
+                    <p style="margin-top:6px; font-size:13px; color:#555;">
+                        White boxes are the formed neighborhoods of Southwest Lansing. Click one and the associated block groups will be selected.
+                    </p>
+                </div>
+
+                
+                <div class="selected-header">
+                    <h3>Selected Block Groups:</h3>
+                    <button id="clear-selection" class="btn">Unselect All</button>
+                    <button id="submit-selection" class="btn">Submit Selection</button>
+                </div>
             
             <hr class="section-bar">
             
             <div class="filter-data-row" style="margin-top:10px;">
-                <p id="selected-filter-display" class="muted" style="margin:0 0 10px 0;">
+                
+                <p id="selected-filter-display" class="muted" style="margin:0 0 6px 0;">
                     Selected Filter: None
                 </p>
+            
+                <button id="reset-last-selection" class="btn" disabled>
+                    Reset to Last Selection
+                </button>
             
                 <button id="show-data-btn" class="btn" disabled>
                     Show data
                 </button>
+            
             </div>
             
             <div id="data-box" class="data-box" style="display:none;">
@@ -237,11 +369,13 @@ rel="stylesheet">
                 Click a polygon to view details.
             </div>
         </aside>
+        
     </div>
 
 </div>
     <!--MapLibre-->
     <script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script src="map.js"></script>
 </body>
 </html>
