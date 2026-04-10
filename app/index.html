@@ -26,7 +26,7 @@ rel="stylesheet">
 
         <div id="drawer-panel" class="drawer-panel">
     <div class="about-header">
-        <h2>App Reproducibility</h2>
+        <h2>App Tutorial</h2>
     </div>
              <div class="demo-drawer-content">
 
@@ -47,27 +47,29 @@ rel="stylesheet">
                     <ul>
                         <li><strong>Food:</strong> Displays community gardens in the immediate area</li>
                         <li><strong>Population:</strong> Displays population data after submission</li>
+                        <li><strong>Income:</strong> Displays median household income per block group</li>
+                        <li><strong>Race:</strong> Displays amount of people per race in selected block groups.</li>
+                        <li><strong>Household Size:</strong> Displays average people per household in owned and rented properties</li>
                     </ul>
                 
                     <p><strong>In Progress:</strong></p>
                     <ul>
                         <li>Health</li>
-                        <li>Income</li>
-                        <li>Race</li>
-                        <li>Household descriptions</li>
                     </ul>
                 
                     <h4>Data Viewing Methods</h4>
                     <p><strong>Working:</strong></p>
                     <ul>
                         <li><strong>Southwest Lansing:</strong> Automatically selects all Southwest Lansing block groups</li>
+                        <li><strong>Radius selection:</strong> Select a radius in miles and click on the map, intersecting block groups will be selected.</li>
+                        <li><strong>Neighborhood-based selection:</strong> All Southwest Lansing neighborhood zones are outlined in white, select a white block group and any associated block groups with that neighborhood will be selected.</li>
+                        
                     </ul>
+                 
                 
                     <p><strong>In Progress:</strong></p>
                     <ul>
                         <li>Zip Code selection</li>
-                        <li>Radius selection (drawing a circle to select block groups)</li>
-                        <li>Neighborhood-based selection</li>
                     </ul>
                 
                     <hr class="section-divider">
@@ -78,6 +80,13 @@ rel="stylesheet">
                         <li><strong>Blue:</strong> Fully selected, included in data</li>
                         <li><strong>Bright Yellow:</strong> Deselected and removed from selection</li>
                         <li><strong>Dim Yellow:</strong> Selected and highlighted in displayed data</li>
+                    </ul>
+                
+                    <hr class="section-divider">
+                
+                    <h3>Layer 2: Block Level</h3>
+                    <ul>
+                        <li><strong>Orange:</strong> Upon submission, users will be granted the access to change their selected area to a finer level of block level data. They can remove unwanted areas to achieve a more particular selection. </li>
                     </ul>
                 
                     <hr class="section-divider">
@@ -132,7 +141,7 @@ rel="stylesheet">
                 </div>
             </div>
 
-        <button id="drawer-toggle" class="drawer-handle">Reproducibility</button>
+        <button id="drawer-toggle" class="drawer-handle">Tutorial</button>
         <div id="filters-drawer-panel" class="filters-drawer-panel">
     <div class="filters-header">
         <h2>Filters</h2>
@@ -149,6 +158,7 @@ rel="stylesheet">
                     <input type="checkbox" id="housesize-filter">
                     Household Size
                 </label>
+                
     
                 <label class="filter-option">
                     <input type="checkbox" id="race-filter">

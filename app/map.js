@@ -80,7 +80,7 @@ buildBgToNeighborhoods();
 
 const filterLabels = {
     'food-filter': 'Food',
-    'housesize-filter': 'Household Size',
+    'housesize-filter': 'Household Ownership',
     'race-filter': 'Race',
     'population-filter': 'Population',
     'health-filter': 'Health',
@@ -110,34 +110,60 @@ async function joinAcsToBgs(acsUrl,bgUrl){
 }
 async function joinRaceToBgs(bgGeojson) {
     const raceRows = await fetchRaceRows();
-    const raceMap = new Map();
 
-    for (const r of raceRows) {
-        const key =
-            String(r.state) +
-            String(r.county) +
-            String(r.tract) +
-            String(r["block group"]);
+    function findRaceRow(possibleLabels) {
+        return raceRows.find(row => {
+            const label = String(row['Label (Grouping)'] || '').toLowerCase().trim();
+            return possibleLabels.some(term => label.includes(term));
+        });
+    }
 
-        raceMap.set(key, r);
+    const totalRow = findRaceRow(['total:']);
+    const whiteRow = findRaceRow(['white alone']);
+    const blackRow = findRaceRow(['black or african american alone', 'black alone']);
+    const nativeRow = findRaceRow(['american indian and alaska native alone']);
+    const asianRow = findRaceRow(['asian alone']);
+    const pacificRow = findRaceRow(['native hawaiian and other pacific islander alone']);
+    const otherRow = findRaceRow(['some other race alone']);
+    const twoPlusRow = findRaceRow(['two or more races']);
+
+    if (!totalRow) {
+        console.error('Could not find Total row in race_data.csv');
+        return bgGeojson;
     }
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
-        const k = p.JOINKEY12 || key12FromLink(p.LINK);
-        if (!k) continue;
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!joinKey) continue;
 
-        const row = raceMap.get(k);
-        if (!row) continue;
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
 
-        p.race_total = Number(row.B02001_001E) || 0;
-        p.race_white = Number(row.B02001_002E) || 0;
-        p.race_black = Number(row.B02001_003E) || 0;
-        p.race_native = Number(row.B02001_004E) || 0;
-        p.race_asian = Number(row.B02001_005E) || 0;
-        p.race_pacific = Number(row.B02001_006E) || 0;
-        p.race_other = Number(row.B02001_007E) || 0;
-        p.race_two_plus = Number(row.B02001_008E) || 0;
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
+
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum =
+            `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+
+        const estimateCol =
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
+
+        p.race_total = Number(String(totalRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_white = Number(String(whiteRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_black = Number(String(blackRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_native = Number(String(nativeRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_asian = Number(String(asianRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_pacific = Number(String(pacificRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_other = Number(String(otherRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_two_plus = Number(String(twoPlusRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
     }
 
     return bgGeojson;
@@ -162,7 +188,7 @@ async function fetchRequestedBgs() {
         .filter(Boolean);
 }
 async function fetchRaceRows() {
-    const res = await fetch('static/data/race_data.json', { cache: 'no-store' });
+    return await fetchCsvRows('static/data/race_data.csv');
     if (!res.ok) throw new Error('Could not load race_data.json');
     const raw = await res.json();
 
@@ -175,7 +201,155 @@ async function fetchRaceRows() {
         return obj;
     });
 }
+async function joinIncomeToBgs(bgGeojson) {
+    const incomeRows = await fetchCsvRows('static/data/income_data.csv');
 
+    // Find the row that actually contains the median household income values
+    const incomeRow = incomeRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('median household income');
+    });
+
+    if (!incomeRow) {
+        console.error('Could not find median household income row in CSV');
+        return bgGeojson;
+    }
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!joinKey) continue;
+
+        // Convert JOINKEY12 like 260650017031 into the same ACS-style column header
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
+
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
+
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+
+        const estimateCol =
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
+
+        const rawIncome = incomeRow[estimateCol];
+        p.income_median = Number(String(rawIncome ?? '').replace(/[$,]/g, '')) || 0;
+
+        console.log(joinKey, estimateCol, rawIncome, p.income_median);
+    }
+
+    return bgGeojson;
+}
+async function joinHouseholdToBgs(bgGeojson) {
+    const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
+
+    function getLabel(row) {
+        return String(row['Label'] || row['Label (Grouping)'] || '').trim().toLowerCase();
+    }
+
+    function findRow(matchers) {
+        return householdRows.find(row => {
+            const label = getLabel(row);
+            return matchers.some(m => label.includes(m));
+        });
+    }
+
+    const totalRow = findRow(['total']);
+    const ownerRow = findRow(['owner occupied', 'owner-occupied']);
+    const renterRow = findRow(['renter occupied', 'renter-occupied']);
+
+    if (!totalRow || !ownerRow || !renterRow) {
+        console.error('Could not find one or more required household rows');
+        return bgGeojson;
+    }
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+
+        const bgName = String(p.NAME || '').trim();  
+        if (!bgName) continue;
+
+        const tractPart = bgName.slice(0, -1);
+        const bgPart = bgName.slice(-1);
+
+        const tractNum = tractPart.length > 2
+            ? `${tractPart.slice(0, tractPart.length - 2)}.${tractPart.slice(-2)}`
+            : tractPart;
+
+        const estimateCol =
+            `Block Group ${bgPart}; Census Tract ${tractNum}; Ingham County; Michigan!!Estimate`;
+
+        const rawTotal = totalRow[estimateCol];
+        const rawOwner = ownerRow[estimateCol];
+        const rawRenter = renterRow[estimateCol];
+
+        console.log('HOUSEHOLD LOOKUP', bgName, estimateCol, rawTotal, rawOwner, rawRenter);
+
+        p.household_total = rawTotal !== undefined && rawTotal !== ''
+            ? Number(String(rawTotal).replace(/,/g, ''))
+            : null;
+
+        p.household_owner = rawOwner !== undefined && rawOwner !== ''
+            ? Number(String(rawOwner).replace(/,/g, ''))
+            : null;
+
+        p.household_renter = rawRenter !== undefined && rawRenter !== ''
+            ? Number(String(rawRenter).replace(/,/g, ''))
+            : null;
+    }
+
+    return bgGeojson;
+}
+async function fetchCsvRows(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Could not load CSV: ${url}`);
+    const text = await res.text();
+
+    const lines = text.trim().split(/\r?\n/);
+    const headers = parseCsvLine(lines[0]);
+
+    return lines.slice(1).map(line => {
+        const values = parseCsvLine(line);
+        const obj = {};
+        headers.forEach((h, i) => {
+            obj[h] = values[i] ?? '';
+        });
+        return obj;
+    });
+}
+
+function parseCsvLine(line) {
+    const out = [];
+    let cur = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const next = line[i + 1];
+
+        if (ch === '"' && inQuotes && next === '"') {
+            cur += '"';
+            i++;
+        } else if (ch === '"') {
+            inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+            out.push(cur);
+            cur = '';
+        } else {
+            cur += ch;
+        }
+    }
+
+    out.push(cur);
+    return out;
+}
 function parseBgLabel(name) {
     const s = String(name);
     if (!s.length) return { tract: s, bg: s };
@@ -352,6 +526,31 @@ function updateSelectedFilterText() {
         el.textContent = 'Selected Filter: None';
     }
 }
+function key12FromGeoName(name) {
+    const s = String(name ?? '').trim();
+
+    const bgMatch = s.match(/Block Group\s+(\d+)/i);
+    const tractMatch = s.match(/Census Tract\s+([\d.]+)/i);
+    const countyMatch = s.match(/(Ingham|Eaton|Clinton)\s+County/i);
+
+    if (!bgMatch || !tractMatch || !countyMatch) return null;
+
+    const bg = bgMatch[1];
+    const tractRaw = tractMatch[1].replace('.', '');
+    const tract = tractRaw.padStart(6, '0');
+
+    const countyName = countyMatch[1].toLowerCase();
+    const countyCodeMap = {
+        ingham: '065',
+        eaton: '045',
+        clinton: '037'
+    };
+
+    const county = countyCodeMap[countyName];
+    if (!county) return null;
+
+    return `26${county}${tract}${bg}`;
+}
 
 function updateShowDataButton() {
     const btn = document.getElementById('show-data-btn');
@@ -477,7 +676,7 @@ function buildRaceBox() {
         return;
     }
 
-    const rowsHtml = [...selectedIds].map(id => {
+    const rows = [...selectedIds].map(id => {
         const feature = (blockGroupGeojson.features || []).find(
             f => String(f.properties?.JOINKEY12) === String(id)
         );
@@ -485,30 +684,228 @@ function buildRaceBox() {
         const p = feature?.properties || {};
         const name = idToName.get(id) || id;
 
-        return `
-            <tr>
-                <td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td>
-                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_white ?? 0}</td>
-                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_black ?? 0}</td>
-                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_asian ?? 0}</td>
-                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${p.race_two_plus ?? 0}</td>
-            </tr>
-        `;
-    }).join('');
+        return {
+            id,
+            name,
+            total: Number(p.race_total) || 0,
+            white: Number(p.race_white) || 0,
+            black: Number(p.race_black) || 0,
+            asian: Number(p.race_asian) || 0,
+            other:
+                (Number(p.race_native) || 0) +
+                (Number(p.race_other) || 0) +
+                (Number(p.race_two_plus) || 0)
+        };
+    });
+
+    const totals = rows.reduce(
+        (acc, r) => {
+            acc.total += r.total;
+            acc.white += r.white;
+            acc.black += r.black;
+            acc.asian += r.asian;
+            acc.other += r.other;
+            return acc;
+        },
+        {
+            total: 0,
+            white: 0,
+            black: 0,
+            asian: 0,
+            other: 0
+        }
+    );
 
     content.innerHTML = `
-        <table style="border-collapse:collapse;width:100%">
-            <thead>
-                <tr>
-                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
-                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
-                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
-                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
-                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Two+</th>
+        <div style="margin-bottom:10px; font-size:13px; color:#555;">
+            Race data acquired from 2020 Census
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table style="border-collapse:collapse;width:100%; min-width:800px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="font-weight:bold;background:#f3f4f6;">
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Group Total</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.total.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.white.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.black.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.asian.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.other.toLocaleString()}</td>
+                    </tr>
+
+                    ${rows.map(r => `
+                        <tr data-id="${r.id}">
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${r.name}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.asian.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.other.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    box.style.display = 'block';
+}
+function buildIncomeBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rows = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+        const income = Number(p.income_median)
+
+        return { id, name, income };
+    });
+
+    const validIncomes = rows
+        .map(r => r.income)
+        .filter(v => Number.isFinite(v) && v > 0);
+
+    const avgIncome = validIncomes.length
+        ? Math.round(validIncomes.reduce((sum, v) => sum + v, 0) / validIncomes.length)
+        : 0;
+
+    content.innerHTML = `
+    <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
+        Average Median Household Income: $${avgIncome.toLocaleString()}
+    </div>
+
+    <div style="margin-bottom:10px; font-size:13px; color:#555;">
+        Data from 2020 Census
+    </div>
+
+    <table style="border-collapse:collapse;width:100%">
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Median Household Income</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rows.map(({ id, name, income }) => `
+                <tr data-id="${id}">
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                        ${Number.isFinite(income) && income > 0 
+                        ? `$${income.toLocaleString()}` 
+                        : '(NULL)'}
+                    </td>
                 </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-        </table>
+            `).join('')}
+        </tbody>
+    </table>
+    <div style="margin-top:10px; font-size:13px; color:#555;">
+    (NULL) means there was not enough valid household income data for that block group
+    </div>
+`;
+
+    box.style.display = 'block';
+}
+function buildHouseholdBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rows = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+
+        return {
+            id,
+            name,
+            total: p.household_total,
+            owner: p.household_owner,
+            renter: p.household_renter
+        };
+    });
+
+    const validTotals = rows.map(r => r.total).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+    const validOwners = rows.map(r => r.owner).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+    const validRenters = rows.map(r => r.renter).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+
+    const avgTotal = validTotals.length
+        ? (validTotals.reduce((a, b) => a + b, 0) / validTotals.length).toFixed(2)
+        : '0.00';
+
+    const avgOwner = validOwners.length
+        ? (validOwners.reduce((a, b) => a + b, 0) / validOwners.length).toFixed(2)
+        : '0.00';
+
+    const avgRenter = validRenters.length
+        ? (validRenters.reduce((a, b) => a + b, 0) / validRenters.length).toFixed(2)
+        : '0.00';
+
+    content.innerHTML = `
+        <div style="margin-bottom:10px; font-size:13px; color:#555;">
+            Average people per owned and rented household<br>
+            Data from U.S. Census Bureau, ACS 5-Year Estimates
+        </div>
+
+        <div style="margin-bottom:8px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px;">
+            <strong>Group Averages</strong><br>
+            Total: ${avgTotal} &nbsp; | &nbsp; Owned: ${avgOwner} &nbsp; | &nbsp; Rented: ${avgRenter}
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table style="border-collapse:collapse;width:100%; min-width:700px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Owned</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Rented</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr data-id="${r.id}">
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${r.name}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                                ${r.total !== null && r.total !== undefined ? Number(r.total).toFixed(2) : '(NULL)'}
+                            </td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                                ${r.owner !== null && r.owner !== undefined ? Number(r.owner).toFixed(2) : '(NULL)'}
+                            </td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                                ${r.renter !== null && r.renter !== undefined ? Number(r.renter).toFixed(2) : '(NULL)'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
     `;
 
     box.style.display = 'block';
@@ -754,6 +1151,20 @@ map.on('load', async () => {
     try {
         let data = await joinAcsToBgs(populationACS, arcgisBlockGroups);
         data = await joinRaceToBgs(data);
+        
+        try {
+            data = await joinIncomeToBgs(data);
+            console.log('Income join loaded successfully');
+        } catch (err) {
+            console.error('Income join failed:', err);
+        }
+        try {
+            data = await joinHouseholdToBgs(data);
+            console.log('Household join loaded successfully');
+        } catch (err) {
+            console.error('Household join failed:', err);
+        }
+        
         blockGroupGeojson = data;
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
         map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
@@ -968,6 +1379,34 @@ document.getElementById('submit-selection').addEventListener('click', () => {
     syncSelectionModeUI();
     updateShowDataButton();
 });
+        const filterIds = [
+    'food-filter',
+    'housesize-filter',
+    'race-filter',
+    'population-filter',
+    'health-filter',
+    'income-filter'
+];
+
+filterIds.forEach(id => {
+    const cb = document.getElementById(id);
+    if (!cb) return;
+
+    cb.addEventListener('change', () => {
+        if (cb.checked) {
+            filterIds.forEach(otherId => {
+                if (otherId !== id) {
+                    const other = document.getElementById(otherId);
+                    if (other) other.checked = false;
+                }
+            });
+        }
+
+        updateSelectedFilterText();
+        updateShowDataButton();
+        document.getElementById('data-box').style.display = 'none';
+    });
+});
 document.getElementById('reset-last-selection').addEventListener('click', () => {
     if (!lastSubmittedIds.length) return;
 
@@ -1016,9 +1455,13 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
         }
     } else if (f === 'race-filter') {
         buildRaceBox();
+    } else if (f === 'income-filter') {
+        buildIncomeBox();
     } else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
         buildPlaceholderBox(filterLabels[f]);
+    } else if (f === 'housesize-filter') {
+        buildHouseholdBox();
     } else {
         buildPlaceholderBox(filterLabels[f]);
     }
