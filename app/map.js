@@ -36,6 +36,12 @@ const filterLabels = {
     'income-filter': 'Income'
 };
 
+const blockHoverPopup = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false
+})
+
+
 //HELPER FUNCTIONS
 //id standardization
 function key12FromBgGEOID(geoid) {
@@ -327,10 +333,23 @@ function syncSelectionModeUI() {
     }
 }
 
+function syncSelectionHeader() {
+    const header = document.getElementById('selection-mode');
+
+    if (selectionMode === SelectionMode.BG_SELECT) {
+        header.textContent = "Selecting Block Groups";
+    } else if (selectionMode === SelectionMode.BLOCK_SELECT) {
+        header.textContent = "Selecting Blocks:";
+    } else {
+        header.textContent = "Selection Locked:";
+    }
+}
+
 //selection mode helper
 async function setSelectionMode(mode) {
     selectionMode = mode
     syncSelectionModeUI()
+    syncSelectionHeader()
 
     if (mode === SelectionMode.BG_SELECT) {
         map.setLayoutProperty('bg-fill', 'visibility', 'visible')
@@ -521,6 +540,30 @@ map.on('load', async () => {
             syncBlockSelectedFill()
         });
 
+        //block hover
+        map.on('mousemove', 'block-selected', e => {
+            if (selectionMode !== SelectionMode.LOCKED) return
+            if (!e.features?.length) return
+            const p = e.features[0].properties ?? {}
+            const pop = p.POP20 ?? 'N/A'
+            const housing = p.HOUSING20 ?? 'N/A'
+            map.getCanvas().style.cursor = 'pointer'
+            blockHoverPopup
+                .setLngLat(e.lngLat)
+                .setHTML(
+                `<div style="font:12px/1.3 sans-serif">
+                    <div><strong>Block</strong></div>
+                    <div>Population: ${pop}</div>
+                    <div>Housing Units: ${housing}</div>
+                </div>`
+                )
+                .addTo(map)
+        });
+
+        map.on('mouseleave', 'block-selected', () => {
+            map.getCanvas().style.cursor = ''
+            blockHoverPopup.remove()
+        })
 
         const ids = await fetchRequestedBgs();
         applyDefaultSelection(ids);
