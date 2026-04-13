@@ -396,32 +396,6 @@ function renderSelectedList() {
         return;
     }
 
-    const items = [...selectedIds].map(id => {
-        const name = idToName.get(id) || id;
-        const p = parseBgLabel(name);
-        const label = p.tract && p.bg ? `Tract ${p.tract}, BG ${p.bg}` : name;
-
-        return `
-        <li>
-            <a href="#" class="bg-link" data-id="${id}">
-                ${label} (${id})
-            </a>
-        </li>`;
-    });
-
-    list.innerHTML = `
-        <ul style="margin:8px 0 0 18px; padding:0;">
-        ${items.join('')}
-        </ul>`;
-
-    document.querySelectorAll('.bg-link').forEach(a => {
-        a.onclick = e => {
-            e.preventDefault();
-            const id = String(a.getAttribute('data-id'));
-            highlightActive(id);
-            highlightDataRow(id);
-        };
-    });
 }
 function getDisplayMode() {
     if (document.getElementById('radius-display')?.checked) return 'radius';
@@ -795,7 +769,7 @@ function buildIncomeBox() {
     </div>
 
     <div style="margin-bottom:10px; font-size:13px; color:#555;">
-        Data from 2020 Census
+        Data from U.S. Census Bureau, ACS 5-Year Estimates
     </div>
 
     <table style="border-collapse:collapse;width:100%">
