@@ -555,3 +555,15 @@ html, body {
     white-space: nowrap;
     flex-shrink: 0;
 }
+#data-box tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+#data-box tbody tr:hover {
+    background-color: #fde68a;
+}
+
+#data-box tbody tr.row-active {
+    background-color: #fde68a;
+}
