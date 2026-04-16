@@ -2,7 +2,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from census import Census
+from dotenv import load_dotenv
 import os
+
+load_dotenv("apikey.env")
 
 app = FastAPI(title="SWLP Prototype App", version="0.1.0")
 
@@ -12,7 +15,9 @@ STATIC_DIR = BASE_DIR / "static"
 CENSUS_API_KEY = os.getenv("CENSUS_API_KEY")
 
 if not CENSUS_API_KEY:
-    raise RuntimeError("CENSUS_API_KEY is not set")
+    raise RuntimeError(
+        "CENSUS_API_KEY is not set. Add it to a local .env file or your Render environment variables."
+    )
 
 c = Census(CENSUS_API_KEY)
 
@@ -94,7 +99,7 @@ def get_income_data():
                 if raw_income not in [None, "", "-666666666"]:
                     try:
                         income_val = int(raw_income)
-                    except:
+                    except Exception:
                         income_val = None
 
                 results[geoid] = {
@@ -126,7 +131,7 @@ def get_household_data():
                 return None
             try:
                 return float(value)
-            except:
+            except Exception:
                 return None
 
         for county in counties:
