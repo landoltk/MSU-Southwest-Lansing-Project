@@ -26,6 +26,8 @@ let blockGroupGeojson = null;
 let lastRadiusCircle = null;
 let hoveredTableId = null;
 let pinnedTableId = null;
+let hoveredNeighborhoodName = null;
+let pinnedNeighborhoodName = null;
 
 
 const neighborhoodToBgs = {
@@ -112,61 +114,24 @@ async function joinAcsToBgs(acsUrl,bgUrl){
     return bg
 }
 async function joinRaceToBgs(bgGeojson) {
-    const raceRows = await fetchRaceRows();
-
-    function findRaceRow(possibleLabels) {
-        return raceRows.find(row => {
-            const label = String(row['Label (Grouping)'] || '').toLowerCase().trim();
-            return possibleLabels.some(term => label.includes(term));
-        });
-    }
-
-    const totalRow = findRaceRow(['total:']);
-    const whiteRow = findRaceRow(['white alone']);
-    const blackRow = findRaceRow(['black or african american alone', 'black alone']);
-    const nativeRow = findRaceRow(['american indian and alaska native alone']);
-    const asianRow = findRaceRow(['asian alone']);
-    const pacificRow = findRaceRow(['native hawaiian and other pacific islander alone']);
-    const otherRow = findRaceRow(['some other race alone']);
-    const twoPlusRow = findRaceRow(['two or more races']);
-
-    if (!totalRow) {
-        console.error('Could not find Total row in race_data.csv');
-        return bgGeojson;
-    }
+    const raceData = await fetchRaceRows();
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
         const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
         if (!joinKey) continue;
 
-        const countyCode = joinKey.slice(2, 5);
-        const tract6 = joinKey.slice(5, 11);
-        const bg = joinKey.slice(11);
+        const row = raceData[joinKey];
+        if (!row) continue;
 
-        const countyMap = {
-            '065': 'Ingham',
-            '045': 'Eaton',
-            '037': 'Clinton'
-        };
-
-        const countyName = countyMap[countyCode];
-        if (!countyName) continue;
-
-        const tractNum =
-            `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
-
-        const estimateCol =
-            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
-
-        p.race_total = Number(String(totalRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_white = Number(String(whiteRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_black = Number(String(blackRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_native = Number(String(nativeRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_asian = Number(String(asianRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_pacific = Number(String(pacificRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_other = Number(String(otherRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_two_plus = Number(String(twoPlusRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_total = Number(row.race_total) || 0;
+        p.race_white = Number(row.race_white) || 0;
+        p.race_black = Number(row.race_black) || 0;
+        p.race_native = Number(row.race_native) || 0;
+        p.race_asian = Number(row.race_asian) || 0;
+        p.race_pacific = Number(row.race_pacific) || 0;
+        p.race_other = Number(row.race_other) || 0;
+        p.race_two_plus = Number(row.race_two_plus) || 0;
     }
 
     return bgGeojson;
@@ -191,121 +156,74 @@ async function fetchRequestedBgs() {
         .filter(Boolean);
 }
 async function fetchRaceRows() {
-    return await fetchCsvRows('static/data/race_data.csv');
-    if (!res.ok) throw new Error('Could not load race_data.json');
-    const raw = await res.json();
-
-    const headers = raw[0];
-    return raw.slice(1).map(row => {
-        const obj = {};
-        headers.forEach((h, i) => {
-            obj[h] = row[i];
-        });
-        return obj;
-    });
+    const res = await fetch('api/race', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not load /api/race');
+    return await res.json();
+}
+async function fetchIncomeRows() {
+    const res = await fetch('api/income', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not load api/income');
+    return await res.json();
+}
+async function fetchHouseholdRows() {
+    const res = await fetch('api/household', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not load api/household');
+    return await res.json();
 }
 async function joinIncomeToBgs(bgGeojson) {
-    const incomeRows = await fetchCsvRows('static/data/income_data.csv');
-
-    // Find the row that actually contains the median household income values
-    const incomeRow = incomeRows.find(row => {
-        const label = String(row['Label (Grouping)'] || '').toLowerCase();
-        return label.includes('median household income');
-    });
-
-    if (!incomeRow) {
-        console.error('Could not find median household income row in CSV');
-        return bgGeojson;
-    }
+    const incomeData = await fetchIncomeRows();
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
         const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
         if (!joinKey) continue;
 
-        // Convert JOINKEY12 like 260650017031 into the same ACS-style column header
-        const countyCode = joinKey.slice(2, 5);
-        const tract6 = joinKey.slice(5, 11);
-        const bg = joinKey.slice(11);
+        const row = incomeData[joinKey];
+        if (!row) {
+            p.income_median = null;
+            continue;
+        }
 
-        const countyMap = {
-            '065': 'Ingham',
-            '045': 'Eaton',
-            '037': 'Clinton'
-        };
-
-        const countyName = countyMap[countyCode];
-        if (!countyName) continue;
-
-        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
-
-        const estimateCol =
-            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
-
-        const rawIncome = incomeRow[estimateCol];
-        p.income_median = Number(String(rawIncome ?? '').replace(/[$,]/g, '')) || 0;
-
-        console.log(joinKey, estimateCol, rawIncome, p.income_median);
+        p.income_median =
+            row.income_median !== null && row.income_median !== undefined
+                ? Number(row.income_median)
+                : null;
     }
 
     return bgGeojson;
 }
+
+   
 async function joinHouseholdToBgs(bgGeojson) {
-    const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
-
-    function getLabel(row) {
-        return String(row['Label'] || row['Label (Grouping)'] || '').trim().toLowerCase();
-    }
-
-    function findRow(matchers) {
-        return householdRows.find(row => {
-            const label = getLabel(row);
-            return matchers.some(m => label.includes(m));
-        });
-    }
-
-    const totalRow = findRow(['total']);
-    const ownerRow = findRow(['owner occupied', 'owner-occupied']);
-    const renterRow = findRow(['renter occupied', 'renter-occupied']);
-
-    if (!totalRow || !ownerRow || !renterRow) {
-        console.error('Could not find one or more required household rows');
-        return bgGeojson;
-    }
+    const householdData = await fetchHouseholdRows();
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!joinKey) continue;
 
-        const bgName = String(p.NAME || '').trim();  
-        if (!bgName) continue;
+        const row = householdData[joinKey];
+        if (!row) {
+            p.household_total = null;
+            p.household_owner = null;
+            p.household_renter = null;
+            continue;
+        }
 
-        const tractPart = bgName.slice(0, -1);
-        const bgPart = bgName.slice(-1);
+        p.household_total =
+            row.household_total !== null && row.household_total !== undefined
+                ? Number(row.household_total)
+                : null;
 
-        const tractNum = tractPart.length > 2
-            ? `${tractPart.slice(0, tractPart.length - 2)}.${tractPart.slice(-2)}`
-            : tractPart;
+        p.household_owner =
+            row.household_owner !== null && row.household_owner !== undefined
+                ? Number(row.household_owner)
+                : null;
 
-        const estimateCol =
-            `Block Group ${bgPart}; Census Tract ${tractNum}; Ingham County; Michigan!!Estimate`;
-
-        const rawTotal = totalRow[estimateCol];
-        const rawOwner = ownerRow[estimateCol];
-        const rawRenter = renterRow[estimateCol];
-
-        console.log('HOUSEHOLD LOOKUP', bgName, estimateCol, rawTotal, rawOwner, rawRenter);
-
-        p.household_total = rawTotal !== undefined && rawTotal !== ''
-            ? Number(String(rawTotal).replace(/,/g, ''))
-            : null;
-
-        p.household_owner = rawOwner !== undefined && rawOwner !== ''
-            ? Number(String(rawOwner).replace(/,/g, ''))
-            : null;
-
-        p.household_renter = rawRenter !== undefined && rawRenter !== ''
-            ? Number(String(rawRenter).replace(/,/g, ''))
-            : null;
+        p.household_renter =
+            row.household_renter !== null && row.household_renter !== undefined
+                ? Number(row.household_renter)
+                : null;
     }
 
     return bgGeojson;
@@ -327,7 +245,109 @@ async function fetchCsvRows(url) {
         return obj;
     });
 }
+function getNeighborhoodFeatures(name) {
+    const ids = (neighborhoodToBgs[name] || []).map(String);
 
+    return (blockGroupGeojson.features || []).filter(
+        f => ids.includes(String(f.properties?.JOINKEY12))
+    );
+}
+
+function buildNeighborhoodTable(config) {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedNeighborhoods.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rows = [...selectedNeighborhoods].map(name => {
+        const features = getNeighborhoodFeatures(name);
+
+        const row = { name };
+
+        config.columns.forEach(col => {
+            let values = features
+                .map(f => {
+                    if (col.compute) return col.compute(f.properties || {});
+                    const v = Number(f.properties?.[col.key]);
+                    return Number.isFinite(v) ? v : null;
+                })
+                .filter(v => v !== null);
+
+            if (!values.length) {
+                row[col.key || col.label] = null;
+            } else if (col.method === 'sum') {
+                row[col.key || col.label] = values.reduce((a, b) => a + b, 0);
+            } else {
+                row[col.key || col.label] = values.reduce((a, b) => a + b, 0) / values.length;
+            }
+        });
+
+        return row;
+    });
+
+    content.innerHTML = `
+        ${config.summary ? config.summary(rows) : ''}
+
+        <div style="margin-bottom:10px; font-size:13px; color:#555;">
+            ${config.subtitle || ''}
+        </div>
+
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Neighborhood</th>
+                    ${config.columns.map(col => `
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">
+                            ${col.label}
+                        </th>
+                    `).join('')}
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map(row => `
+                    <tr data-name="${row.name}">
+                        <td style="padding:6px 8px;border-bottom:1px solid #eee;">${row.name}</td>
+                        ${config.columns.map(col => {
+                            const key = col.key || col.label;
+                            const val = row[key];
+                            return `
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                                    ${col.format ? col.format(val) : val}
+                                </td>
+                            `;
+                        }).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
+
+    document.querySelectorAll('#data-box tbody tr[data-name]').forEach(tr => {
+        const name = tr.getAttribute('data-name');
+    
+        tr.addEventListener('mouseenter', () => {
+            hoveredNeighborhoodName = name;
+            updateNeighborhoodTableAndMapHighlight();
+        });
+    
+        tr.addEventListener('mouseleave', () => {
+            hoveredNeighborhoodName = null;
+            updateNeighborhoodTableAndMapHighlight();
+        });
+    
+        tr.addEventListener('click', () => {
+            pinnedNeighborhoodName = name;
+            hoveredNeighborhoodName = null;
+            updateNeighborhoodTableAndMapHighlight();
+        });
+    });
+    updateNeighborhoodTableAndMapHighlight();
+}
 function parseCsvLine(line) {
     const out = [];
     let cur = '';
@@ -365,7 +385,7 @@ function renderSelectedList() {
 
     if (selectionMode === 'neighborhood') {
         if (!selectedNeighborhoods.size) {
-            list.innerHTML = 'None';
+            list.innerHTML = '';
             return;
         }
 
@@ -387,7 +407,9 @@ function renderSelectedList() {
             a.onclick = e => {
                 e.preventDefault();
                 const name = a.getAttribute('data-name');
-                highlightNeighborhood(name);
+                pinnedNeighborhoodName = name;
+                hoveredNeighborhoodName = null;
+                updateNeighborhoodTableAndMapHighlight();
             };
         });
 
@@ -395,10 +417,9 @@ function renderSelectedList() {
     }
 
     if (!selectedIds.size) {
-        list.innerHTML = 'None';
+        list.innerHTML = '';
         return;
     }
-
 }
 function getDisplayMode() {
     if (document.getElementById('radius-display')?.checked) return 'radius';
@@ -976,9 +997,11 @@ function selectAllNeighborhoods() {
     selectedNeighborhoods.clear();
     activeId = null;
     selectionLocked = false;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
 
-    syncNeighborhoodBaseFill();   // white neighborhood BGs
-    syncSelectedFill();           // no blue selection yet
+    syncNeighborhoodBaseFill();
+    syncSelectedFill();
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
 
     renderSelectedList();
@@ -1008,6 +1031,11 @@ function exitNeighborhoodMode() {
 }
 
 function highlightNeighborhood(name) {
+    if (!name) {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+        return;
+    }
+
     const ids = (neighborhoodToBgs[name] || []).map(String);
 
     map.setFilter('active-bg-highlight', [
@@ -1019,6 +1047,10 @@ function highlightNeighborhood(name) {
     document.getElementById('details').textContent =
         `${name}: ${ids.length} block group(s) highlighted.`;
 }
+function updateNeighborhoodHighlight() {
+    const name = hoveredNeighborhoodName || pinnedNeighborhoodName || null;
+    highlightNeighborhood(name);
+}
 function selectNeighborhoodsFromBg(bgId) {
     const id = String(bgId);
     const neighborhoods = bgToNeighborhoods.get(id) || [];
@@ -1029,18 +1061,14 @@ function selectNeighborhoodsFromBg(bgId) {
         return;
     }
 
-    // Check whether this clicked BG is already part of the current blue selection
-    const isAlreadySelected = selectedIds.has(id);
+    const wasSelected = selectedIds.has(id);
 
-    if (isAlreadySelected) {
-        // Remove all neighborhoods associated with this clicked BG
+    if (wasSelected) {
         neighborhoods.forEach(name => selectedNeighborhoods.delete(name));
     } else {
-        // Add all neighborhoods associated with this clicked BG
         neighborhoods.forEach(name => selectedNeighborhoods.add(name));
     }
 
-    // Rebuild selectedIds from the currently selected neighborhoods
     selectedIds.clear();
     selectedNeighborhoods.forEach(name => {
         (neighborhoodToBgs[name] || []).forEach(bg => {
@@ -1051,21 +1079,42 @@ function selectNeighborhoodsFromBg(bgId) {
     syncNeighborhoodBaseFill();
     syncSelectedFill();
 
-    if (selectedIds.has(id)) {
-        map.setFilter('active-bg-highlight', [
-            '==',
-            'JOINKEY12',
-            id
-        ]);
-    } else {
-        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    if (!wasSelected) {
+        pinnedNeighborhoodName = neighborhoods[0] || null;
+    } else if (pinnedNeighborhoodName && !selectedNeighborhoods.has(pinnedNeighborhoodName)) {
+        pinnedNeighborhoodName = [...selectedNeighborhoods][0] || null;
     }
+
+    hoveredNeighborhoodName = null;
+    updateNeighborhoodHighlight();
 
     renderSelectedList();
     updateShowDataButton();
 
     document.getElementById('details').textContent =
         `${selectedNeighborhoods.size} neighborhood(s) selected.`;
+}
+function highlightNeighborhoodRow(name) {
+    const rows = document.querySelectorAll('#data-box tbody tr[data-name]');
+
+    rows.forEach(tr => {
+        const rowName = String(tr.getAttribute('data-name') || '');
+        tr.classList.toggle('row-active', rowName === String(name));
+    });
+}
+
+function updateNeighborhoodTableAndMapHighlight() {
+    const name = pinnedNeighborhoodName || hoveredNeighborhoodName || null;
+
+    if (name) {
+        highlightNeighborhood(name);
+        highlightNeighborhoodRow(name);
+    } else {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+        document.querySelectorAll('#data-box tbody tr[data-name]').forEach(tr => {
+            tr.classList.remove('row-active');
+        });
+    }
 }
 function getNeighborhoodPopulation(neighborhoodName) {
     const ids = neighborhoodToBgs[neighborhoodName] || [];
@@ -1186,7 +1235,12 @@ map.on('load', async () => {
     setLoading(true);
     try {
         let data = await joinAcsToBgs(populationACS, arcgisBlockGroups);
-        data = await joinRaceToBgs(data);
+        try {
+            data = await joinRaceToBgs(data);
+            console.log('Race loaded');
+        } catch (err) {
+            console.error('Race failed:', err);
+        }
         
         try {
             data = await joinIncomeToBgs(data);
@@ -1483,21 +1537,95 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
     const f = getActiveFilter();
     if (!f) return;
 
-    if (f === 'population-filter') {
-        if (selectionMode === 'neighborhood') {
-            buildNeighborhoodPopulationBox();
-        } else {
-            buildPopulationBox();
+    if (selectionMode === 'neighborhood') {
+        if (f === 'population-filter') {
+            buildNeighborhoodTable({
+                subtitle: 'Population data',
+                columns: [
+                    {
+                        key: 'csv_B01003_001E',
+                        label: 'Population',
+                        method: 'sum',
+                        format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)'
+                    }
+                ]
+            });
+        } else if (f === 'income-filter') {
+            buildNeighborhoodTable({
+                subtitle: 'Data from U.S. Census Bureau, ACS 5-Year Estimates',
+                columns: [
+                    {
+                        key: 'income_median',
+                        label: 'Median Household Income',
+                        method: 'avg',
+                        format: v => Number.isFinite(v) && v > 0 ? `$${Math.round(v).toLocaleString()}` : '(NULL)'
+                    }
+                ],
+                summary: rows => {
+                    const vals = rows.map(r => r.income_median).filter(v => Number.isFinite(v) && v > 0);
+                    const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+                    return `
+                        <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
+                            Average Median Household Income: $${avg.toLocaleString()}
+                        </div>
+                    `;
+                }
+            });
+        } else if (f === 'housesize-filter') {
+            buildNeighborhoodTable({
+                subtitle: 'Data from U.S. Census Bureau, ACS 5-Year Estimates',
+                columns: [
+                    {
+                        key: 'household_total',
+                        label: 'Total',
+                        method: 'avg',
+                        format: v => Number.isFinite(v) ? v.toFixed(2) : '(NULL)'
+                    },
+                    {
+                        key: 'household_owner',
+                        label: 'Owned',
+                        method: 'avg',
+                        format: v => Number.isFinite(v) ? v.toFixed(2) : '(NULL)'
+                    },
+                    {
+                        key: 'household_renter',
+                        label: 'Rented',
+                        method: 'avg',
+                        format: v => Number.isFinite(v) ? v.toFixed(2) : '(NULL)'
+                    }
+                ]
+            });
+        } else if (f === 'race-filter') {
+            buildNeighborhoodTable({
+                subtitle: 'Race data acquired from 2020 Census',
+                columns: [
+                    { key: 'race_total', label: 'Total', method: 'sum', format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)' },
+                    { key: 'race_white', label: 'White', method: 'sum', format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)' },
+                    { key: 'race_black', label: 'Black', method: 'sum', format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)' },
+                    { key: 'race_asian', label: 'Asian', method: 'sum', format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)' },
+                    {
+                        label: 'Other',
+                        method: 'sum',
+                        compute: p =>
+                            (Number(p.race_native) || 0) +
+                            (Number(p.race_pacific) || 0) +
+                            (Number(p.race_other) || 0) +
+                            (Number(p.race_two_plus) || 0),
+                        format: v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '(NULL)'
+                    }
+                ]
+            });
         }
-    } else if (f === 'race-filter') {
-        buildRaceBox();
-    } else if (f === 'income-filter') {
-        buildIncomeBox();
-    } else if (f === 'food-filter') {
+        return;
+    }
+
+    if (f === 'population-filter') buildPopulationBox();
+    else if (f === 'race-filter') buildRaceBox();
+    else if (f === 'income-filter') buildIncomeBox();
+    else if (f === 'housesize-filter') buildHouseholdBox();
+    else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
         buildPlaceholderBox(filterLabels[f]);
-    } else if (f === 'housesize-filter') {
-        buildHouseholdBox();
     } else {
         buildPlaceholderBox(filterLabels[f]);
     }
