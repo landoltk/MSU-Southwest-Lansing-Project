@@ -490,6 +490,7 @@ function renderSelectedList() {
         };
     });
 }
+
 function getDisplayMode() {
     if (document.getElementById('radius-display')?.checked) return 'radius';
     if (document.getElementById('neighborhoods-display')?.checked) return 'neighborhoods';
@@ -1252,17 +1253,22 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-fill', 'visibility', 'none')
         map.setLayoutProperty('block-outline', 'visibility', 'none')
         map.setLayoutProperty('block-selected', 'visibility', 'none')
+        map.setLayoutProperty('block-selected-outline', 'visibility', 'none')
         selectedBlockIds.clear()
         updateShowDataButton()
         return
     }
 
     if (mode === SelectionMode.BLOCK_SELECT) {
-        const blocks = await loadBlocksForSelectedBgs()
-        selectedBlockIds.clear()
-        for (const f of blocks.features ?? []) {
-        const id = String(f.properties?.GEOID20)
-        if (id) selectedBlockIds.add(id)
+        //checks if blocks have been loaded before to prevent wipe when going from locked back to block select
+        if (selectedBlockIds.size === 0) {
+            const blocks = await loadBlocksForSelectedBgs()
+            for (const f of blocks.features ?? []) {
+                const id = String(f.properties?.GEOID20)
+                if (id) selectedBlockIds.add(id)
+            }
+        } else {
+            //blocks already loaded so skip
         }
         map.setLayoutProperty('bg-fill', 'visibility', 'none')
         map.setLayoutProperty('bg-outline', 'visibility', 'none')
@@ -1271,12 +1277,18 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-fill', 'visibility', 'visible')
         map.setLayoutProperty('block-outline', 'visibility', 'visible')
         map.setLayoutProperty('block-selected', 'visibility', 'visible')
+        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
         syncBlockSelectedFill()
         updateShowDataButton()
         return
     }
 
     if (mode === SelectionMode.LOCKED) {
+        map.setLayoutProperty('block-fill', 'visibility', 'none')
+        map.setLayoutProperty('block-outline', 'visibility', 'none')
+        map.setLayoutProperty('block-selected', 'visibility', 'visible')
+        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
+        syncBlockSelectedFill()
         updateShowDataButton()
     }
 }
@@ -1381,6 +1393,18 @@ map.on('load', async () => {
             filter: ['in', ['get', 'GEOID20'], ['literal', []]]
         });
 
+        map.addLayer({
+            id: 'block-selected-outline',
+            type: 'line',
+            source: 'blocks',
+            paint: {
+                'line-color': '#c2410c',
+                'line-width': 0.5
+            },
+            layout: { visibility: 'none' },
+            filter: ['in', ['get', 'GEOID20'], ['literal', []]]
+        });
+
 
         map.addLayer({
             id: 'community-gardens-fill',
@@ -1472,7 +1496,7 @@ map.on('load', async () => {
             }
         });
         map.on('click', e => {
-            if (selectionMode === SelectionMode.LOCKED) return;
+            if (selectionMode === SelectionMode.LOCKED || selectionMode === SelectionMode.BLOCK_SELECT) return;
             if (getDisplayMode() !== 'radius') return;
         
             const radiusInput = document.getElementById('radius-input');
@@ -1537,37 +1561,39 @@ map.on('load', async () => {
 document.getElementById('clear-selection').addEventListener('click', () => {
     // Step 1: if selection is locked, clicking should ONLY unlock editing
     if (selectionMode === SelectionMode.LOCKED) {
-        selectionMode = SelectionMode.BG_SELECT;
-        syncSelectionModeUI();
-        updateShowDataButton();
+        setSelectionMode(SelectionMode.BLOCK_SELECT);
         return;
-    }
+    } else if (selectionMode === SelectionMode.BLOCK_SELECT) {
+        setSelectionMode(SelectionMode.BG_SELECT);
+        return
+    } else {
+        // Step 2: neighborhood mode clear behavior
+        if (selectionModeBG === 'neighborhood') {
+            selectedIds.clear();
+            selectedNeighborhoods.clear();
+            activeId = null;
 
-    // Step 2: neighborhood mode clear behavior
-    if (selectionModeBG === 'neighborhood') {
+            syncNeighborhoodBaseFill();
+            syncSelectedFill();
+            renderSelectedList();
+            updateShowDataButton();
+
+            map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+            document.getElementById('data-box').style.display = 'none';
+            document.getElementById('details').textContent =
+                'Click a white neighborhood block group to select its neighborhood(s).';
+            return;
+        }
         selectedIds.clear();
-        selectedNeighborhoods.clear();
-        activeId = null;
-
-        syncNeighborhoodBaseFill();
-        syncSelectedFill();
-        renderSelectedList();
-        updateShowDataButton();
-
-        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
-        document.getElementById('data-box').style.display = 'none';
-        document.getElementById('details').textContent =
-            'Click a white neighborhood block group to select its neighborhood(s).';
-        return;
     }
 
     // Step 3: normal block mode clear behavior
-    selectedIds.clear();
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     clearRadiusCircle();
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
+    syncSelectionModeUI();
     updateShowDataButton();
 });
 
