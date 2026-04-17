@@ -377,6 +377,7 @@ async function joinIncomeToBgs(bgGeojson) {
 }
 async function joinHouseholdToBgs(bgGeojson) {
     const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
+    
 
     console.log('Household labels:',
         householdRows.map(r => r['Label (Grouping)']).filter(Boolean)
@@ -385,21 +386,21 @@ async function joinHouseholdToBgs(bgGeojson) {
     const totalRow = householdRows.find(row => {
         const label = String(row['Label (Grouping)'] || '').toLowerCase();
         return label.includes('average household size') &&
-               label.includes('occupied housing units') &&
-               !label.includes('owner-occupied') &&
-               !label.includes('renter-occupied');
+            label.includes('occupied housing units') &&
+            !label.includes('owner-occupied') &&
+            !label.includes('renter-occupied');
     });
 
     const ownerRow = householdRows.find(row => {
         const label = String(row['Label (Grouping)'] || '').toLowerCase();
         return label.includes('average household size') &&
-               label.includes('owner-occupied');
+            label.includes('owner-occupied');
     });
 
     const renterRow = householdRows.find(row => {
         const label = String(row['Label (Grouping)'] || '').toLowerCase();
         return label.includes('average household size') &&
-               label.includes('renter-occupied');
+            label.includes('renter-occupied');
     });
 
     console.log('Matched household rows:', {
@@ -410,6 +411,7 @@ async function joinHouseholdToBgs(bgGeojson) {
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
 
         const countyCode = joinKey.slice(2, 5);
         const tract6 = joinKey.slice(5, 11);
@@ -664,24 +666,6 @@ function renderSelectedList() {
         list.innerHTML = '';
         return;
     }
-
-    const items = [...selectedIds].map(id => {
-        const name = idToName.get(id) ?? id;
-        const p = parseBgLabel(name);
-        const label = p.tract && p.bg ? `Tract ${p.tract}, BG ${p.bg}` : name;
-
-        return `
-        <li>
-            <a href="#" class="bg-link" data-id="${id}">
-                ${label} (${id})
-            </a>
-        </li>`;
-    });
-
-    list.innerHTML = `
-        <ul style="margin:8px 0 0 18px; padding:0;">
-        ${items.join('')}
-        </ul>`;
 
     document.querySelectorAll('.bg-link').forEach(a => {
         a.onclick = e => {
@@ -1072,7 +1056,7 @@ function buildRaceBox() {
 
                     ${rows.map(r => `
                         <tr data-id="${r.id}">
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${r.name}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(r.name)}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
@@ -1139,7 +1123,7 @@ function buildIncomeBox() {
         <tbody>
             ${rows.map(({ id, name, income }) => `
                 <tr data-id="${id}">
-                    <td style="padding:6px 8px;border-bottom:1px solid #eee;">${name}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(name)}</td>
                     <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
                         ${Number.isFinite(income) && income > 0 
                         ? `$${income.toLocaleString()}` 
