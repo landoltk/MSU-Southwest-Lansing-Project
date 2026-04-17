@@ -555,3 +555,16 @@ html, body {
     white-space: nowrap;
     flex-shrink: 0;
 }
+.team-photo {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+}
+#data-box tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+#data-box tbody tr:hover {
+    background-color: #fde68a;
+}
