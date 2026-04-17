@@ -173,24 +173,61 @@ async function joinAcsToBgs(acsUrl, bgUrl) {
     return bg
 }
 async function joinRaceToBgs(bgGeojson) {
-    const raceData = await fetchRaceRows();
+    const raceRows = await fetchRaceRows();
+
+    function findRaceRow(possibleLabels) {
+        return raceRows.find(row => {
+            const label = String(row['Label (Grouping)'] || '').toLowerCase().trim();
+            return possibleLabels.some(term => label.includes(term));
+        });
+    }
+
+    const totalRow = findRaceRow(['total:']);
+    const whiteRow = findRaceRow(['white alone']);
+    const blackRow = findRaceRow(['black or african american alone', 'black alone']);
+    const nativeRow = findRaceRow(['american indian and alaska native alone']);
+    const asianRow = findRaceRow(['asian alone']);
+    const pacificRow = findRaceRow(['native hawaiian and other pacific islander alone']);
+    const otherRow = findRaceRow(['some other race alone']);
+    const twoPlusRow = findRaceRow(['two or more races']);
+
+    if (!totalRow) {
+        console.error('Could not find Total row in race_data.csv');
+        return bgGeojson;
+    }
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
         const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
         if (!joinKey) continue;
 
-        const row = raceData[joinKey];
-        if (!row) continue;
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
 
-        p.race_total = Number(row.race_total) || 0;
-        p.race_white = Number(row.race_white) || 0;
-        p.race_black = Number(row.race_black) || 0;
-        p.race_native = Number(row.race_native) || 0;
-        p.race_asian = Number(row.race_asian) || 0;
-        p.race_pacific = Number(row.race_pacific) || 0;
-        p.race_other = Number(row.race_other) || 0;
-        p.race_two_plus = Number(row.race_two_plus) || 0;
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
+
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum =
+            `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+
+        const estimateCol =
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
+
+        p.race_total = Number(String(totalRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_white = Number(String(whiteRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_black = Number(String(blackRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_native = Number(String(nativeRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_asian = Number(String(asianRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_pacific = Number(String(pacificRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_other = Number(String(otherRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        p.race_two_plus = Number(String(twoPlusRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
     }
 
     return bgGeojson;
@@ -215,33 +252,42 @@ async function fetchRequestedBgs() {
         .filter(Boolean);
 }
 async function fetchRaceRows() {
-    const res = await fetch('api/race', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not load /api/race');
-    return await res.json();
-}
-async function fetchIncomeRows() {
-    const res = await fetch('api/income', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not load api/income');
-    return await res.json();
-}
-async function fetchHouseholdRows() {
-    const res = await fetch('api/household', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not load api/household');
-    return await res.json();
+    return await fetchCsvRows('static/data/race_data.csv');
+    if (!res.ok) throw new Error('Could not load race_data.json');
+    const raw = await res.json();
+
+    const headers = raw[0];
+    return raw.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            obj[h] = row[i];
+        });
+        return obj;
+    });
 }
 async function joinIncomeToBgs(bgGeojson) {
-    const incomeData = await fetchIncomeRows();
+    const incomeRows = await fetchCsvRows('static/data/income_data.csv');
+
+    // Find the row that actually contains the median household income values
+    const incomeRow = incomeRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('median household income');
+    });
+
+    if (!incomeRow) {
+        console.error('Could not find median household income row in CSV');
+        return bgGeojson;
+    }
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
         const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
         if (!joinKey) continue;
 
-        const row = incomeData[joinKey];
-        if (!row) {
-            p.income_median = null;
-            continue;
-        }
+        // Convert JOINKEY12 like 260650017031 into the same ACS-style column header
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
 
         const countyMap = {
             '065': 'Ingham',
@@ -265,33 +311,41 @@ async function joinIncomeToBgs(bgGeojson) {
 
     return bgGeojson;
 }
-
-   
 async function joinHouseholdToBgs(bgGeojson) {
-    const householdData = await fetchHouseholdRows();
+    const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
+
+    function getLabel(row) {
+        return String(row['Label'] || row['Label (Grouping)'] || '').trim().toLowerCase();
+    }
+
+    function findRow(matchers) {
+        return householdRows.find(row => {
+            const label = getLabel(row);
+            return matchers.some(m => label.includes(m));
+        });
+    }
+
+    const totalRow = findRow(['total']);
+    const ownerRow = findRow(['owner occupied', 'owner-occupied']);
+    const renterRow = findRow(['renter occupied', 'renter-occupied']);
+
+    if (!totalRow || !ownerRow || !renterRow) {
+        console.error('Could not find one or more required household rows');
+        return bgGeojson;
+    }
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
-        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
-        if (!joinKey) continue;
 
-        const row = householdData[joinKey];
-        if (!row) {
-            p.household_total = null;
-            p.household_owner = null;
-            p.household_renter = null;
-            continue;
-        }
+        const bgName = String(p.NAME || '').trim();  
+        if (!bgName) continue;
 
-        p.household_total =
-            row.household_total !== null && row.household_total !== undefined
-                ? Number(row.household_total)
-                : null;
+        const tractPart = bgName.slice(0, -1);
+        const bgPart = bgName.slice(-1);
 
-        p.household_owner =
-            row.household_owner !== null && row.household_owner !== undefined
-                ? Number(row.household_owner)
-                : null;
+        const tractNum = tractPart.length > 2
+            ? `${tractPart.slice(0, tractPart.length - 2)}.${tractPart.slice(-2)}`
+            : tractPart;
 
         const estimateCol =
             `Block Group ${bgPart}; Census Tract ${tractNum}; Ingham County; Michigan!!Estimate`;
@@ -317,6 +371,7 @@ async function joinHouseholdToBgs(bgGeojson) {
 
     return bgGeojson;
 }
+
 async function fetchCsvRows(url) {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Could not load CSV: ${url}`);
