@@ -24,11 +24,6 @@ let selectionMode = 'block'; // 'block' or 'neighborhood'
 const selectedNeighborhoods = new Set();
 let blockGroupGeojson = null;
 let lastRadiusCircle = null;
-let hoveredTableId = null;
-let pinnedTableId = null;
-let hoveredNeighborhoodName = null;
-let pinnedNeighborhoodName = null;
-
 
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
@@ -591,10 +586,9 @@ function toggleSelection(id) {
 }
 
 function highlightActive(id) {
-    activeId = String(id);
-    pinnedTableId = String(id);
-    hoveredTableId = null;
-    updateTableAndMapHighlight();
+    activeId = id;
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', id]);
+    highlightDataRow(id);
 }
 
 //implements default selection
@@ -627,7 +621,6 @@ function buildPopulationBox() {
         groupTotal += total;
 
         return {
-            id,
             name,
             total
         };
@@ -642,8 +635,8 @@ function buildPopulationBox() {
                 ${groupTotal.toLocaleString()}
             </td>
         </tr>
-    ` + rows.map(({ id, name, total }) => `
-        <tr data-id="${id}">
+    ` + rows.map(({ name, total }) => `
+        <tr>
             <td style="padding:6px 8px;border-bottom:1px solid #eee;">
                 ${name}
             </td>
@@ -666,10 +659,6 @@ function buildPopulationBox() {
     `;
 
     box.style.display = 'block';
-    pinnedTableId = null;
-    hoveredTableId = null;
-    attachDataRowInteractions();
-    updateTableAndMapHighlight();
 }
 function buildRaceBox() {
     const box = document.getElementById('data-box');
@@ -763,10 +752,6 @@ function buildRaceBox() {
     `;
 
     box.style.display = 'block';
-    pinnedTableId = null;
-    hoveredTableId = null;
-    attachDataRowInteractions();
-    updateTableAndMapHighlight();
 }
 function buildIncomeBox() {
     const box = document.getElementById('data-box');
@@ -832,10 +817,6 @@ function buildIncomeBox() {
 `;
 
     box.style.display = 'block';
-    pinnedTableId = null;
-    hoveredTableId = null;
-    attachDataRowInteractions();
-    updateTableAndMapHighlight();
 }
 function buildHouseholdBox() {
     const box = document.getElementById('data-box');
@@ -921,10 +902,6 @@ function buildHouseholdBox() {
     `;
 
     box.style.display = 'block';
-    pinnedTableId = null;
-    hoveredTableId = null;
-    attachDataRowInteractions();
-    updateTableAndMapHighlight();
 }
 function buildNeighborhoodPopulationBox() {
     const box = document.getElementById('data-box');
@@ -978,10 +955,6 @@ function buildNeighborhoodPopulationBox() {
     `;
 
     box.style.display = 'block';
-    pinnedTableId = null;
-    hoveredTableId = null;
-    attachDataRowInteractions();
-    updateTableAndMapHighlight();
 }
 
 function buildPlaceholderBox(label){
@@ -1146,46 +1119,9 @@ function setCommunityGardensVisible(flag) {
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
-
     rows.forEach(tr => {
-        const rowId = String(tr.getAttribute('data-id') || '');
-        tr.classList.toggle('row-active', rowId === String(id));
-    });
-}
-function updateTableAndMapHighlight() {
-    const id = pinnedTableId || hoveredTableId || null;
-
-    if (id) {
-        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', String(id)]);
-        highlightDataRow(id);
-    } else {
-        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
-
-        const rows = document.querySelectorAll('#data-box tbody tr');
-        rows.forEach(tr => tr.classList.remove('row-active'));
-    }
-}
-function attachDataRowInteractions() {
-    const rows = document.querySelectorAll('#data-box tbody tr[data-id]');
-
-    rows.forEach(tr => {
-        const id = String(tr.getAttribute('data-id'));
-
-        tr.addEventListener('mouseenter', () => {
-            hoveredTableId = id;
-            updateTableAndMapHighlight();
-        });
-
-        tr.addEventListener('mouseleave', () => {
-            hoveredTableId = null;
-            updateTableAndMapHighlight();
-        });
-
-        tr.addEventListener('click', () => {
-            pinnedTableId = id;
-            activeId = id;
-            updateTableAndMapHighlight();
-        });
+        if (tr.getAttribute('data-id') === String(id)) tr.style.background = '#fde68a';
+        else tr.style.background = '';
     });
 }
 async function resetToSouthwestLansing() {
