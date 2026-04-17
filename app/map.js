@@ -31,6 +31,10 @@ let selectionModeBG = 'block'; // 'block' or 'neighborhood'
 const selectedNeighborhoods = new Set();
 let blockGroupGeojson = null;
 let lastRadiusCircle = null;
+let pinnedTableId = null;
+let hoveredTableId = null;
+let hoveredNeighborhoodName = null;
+let pinnedNeighborhoodName = null;
 
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
@@ -173,28 +177,47 @@ async function joinAcsToBgs(acsUrl, bgUrl) {
     return bg
 }
 async function joinRaceToBgs(bgGeojson) {
-    const raceRows = await fetchRaceRows();
+    const raceRows = await fetchCsvRows('static/data/race_data.csv');
 
-    function findRaceRow(possibleLabels) {
-        return raceRows.find(row => {
-            const label = String(row['Label (Grouping)'] || '').toLowerCase().trim();
-            return possibleLabels.some(term => label.includes(term));
-        });
-    }
+    const totalRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('total:');
+    });
 
-    const totalRow = findRaceRow(['total:']);
-    const whiteRow = findRaceRow(['white alone']);
-    const blackRow = findRaceRow(['black or african american alone', 'black alone']);
-    const nativeRow = findRaceRow(['american indian and alaska native alone']);
-    const asianRow = findRaceRow(['asian alone']);
-    const pacificRow = findRaceRow(['native hawaiian and other pacific islander alone']);
-    const otherRow = findRaceRow(['some other race alone']);
-    const twoPlusRow = findRaceRow(['two or more races']);
+    const whiteRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('white alone');
+    });
 
-    if (!totalRow) {
-        console.error('Could not find Total row in race_data.csv');
-        return bgGeojson;
-    }
+    const blackRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('black or african american alone');
+    });
+
+    const nativeRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('american indian and alaska native alone');
+    });
+
+    const asianRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('asian alone');
+    });
+
+    const pacificRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('native hawaiian and other pacific islander alone');
+    });
+
+    const otherRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('some other race alone');
+    });
+
+    const twoPlusRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('two or more races');
+    });
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
@@ -214,20 +237,21 @@ async function joinRaceToBgs(bgGeojson) {
         const countyName = countyMap[countyCode];
         if (!countyName) continue;
 
-        const tractNum =
-            `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
 
         const estimateCol =
             `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
 
-        p.race_total = Number(String(totalRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_white = Number(String(whiteRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_black = Number(String(blackRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_native = Number(String(nativeRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_asian = Number(String(asianRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_pacific = Number(String(pacificRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_other = Number(String(otherRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
-        p.race_two_plus = Number(String(twoPlusRow?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+        const num = row => Number(String(row?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+
+        p.race_total = num(totalRow);
+        p.race_white = num(whiteRow);
+        p.race_black = num(blackRow);
+        p.race_native = num(nativeRow);
+        p.race_asian = num(asianRow);
+        p.race_pacific = num(pacificRow);
+        p.race_other = num(otherRow);
+        p.race_two_plus = num(twoPlusRow);
     }
 
     return bgGeojson;
@@ -252,18 +276,58 @@ async function fetchRequestedBgs() {
         .filter(Boolean);
 }
 async function fetchRaceRows() {
-    return await fetchCsvRows('static/data/race_data.csv');
-    if (!res.ok) throw new Error('Could not load race_data.json');
-    const raw = await res.json();
+    const rows = await fetchCsvRows('static/data/race_data.csv');
+    const out = {};
 
-    const headers = raw[0];
-    return raw.slice(1).map(row => {
-        const obj = {};
-        headers.forEach((h, i) => {
-            obj[h] = row[i];
-        });
-        return obj;
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            race_total: row.race_total,
+            race_white: row.race_white,
+            race_black: row.race_black,
+            race_native: row.race_native,
+            race_asian: row.race_asian,
+            race_pacific: row.race_pacific,
+            race_other: row.race_other,
+            race_two_plus: row.race_two_plus
+        };
     });
+
+    return out;
+}
+async function fetchIncomeRows() {
+    const rows = await fetchCsvRows('static/data/income_data.csv');
+    const out = {};
+
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            income_median: row.income_median
+        };
+    });
+
+    return out;
+}
+async function fetchHouseholdRows() {
+    const rows = await fetchCsvRows('static/data/household_ownership_data.csv');
+    const out = {};
+
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            household_total: row.household_total,
+            household_owner: row.household_owner,
+            household_renter: row.household_renter
+        };
+    });
+
+    return out;
 }
 async function joinIncomeToBgs(bgGeojson) {
     const incomeRows = await fetchCsvRows('static/data/income_data.csv');
@@ -314,59 +378,67 @@ async function joinIncomeToBgs(bgGeojson) {
 async function joinHouseholdToBgs(bgGeojson) {
     const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
 
-    function getLabel(row) {
-        return String(row['Label'] || row['Label (Grouping)'] || '').trim().toLowerCase();
-    }
+    console.log('Household labels:',
+        householdRows.map(r => r['Label (Grouping)']).filter(Boolean)
+    );
 
-    function findRow(matchers) {
-        return householdRows.find(row => {
-            const label = getLabel(row);
-            return matchers.some(m => label.includes(m));
-        });
-    }
+    const totalRow = householdRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('average household size') &&
+               label.includes('occupied housing units') &&
+               !label.includes('owner-occupied') &&
+               !label.includes('renter-occupied');
+    });
 
-    const totalRow = findRow(['total']);
-    const ownerRow = findRow(['owner occupied', 'owner-occupied']);
-    const renterRow = findRow(['renter occupied', 'renter-occupied']);
+    const ownerRow = householdRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('average household size') &&
+               label.includes('owner-occupied');
+    });
 
-    if (!totalRow || !ownerRow || !renterRow) {
-        console.error('Could not find one or more required household rows');
-        return bgGeojson;
-    }
+    const renterRow = householdRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('average household size') &&
+               label.includes('renter-occupied');
+    });
+
+    console.log('Matched household rows:', {
+        total: totalRow?.['Label (Grouping)'],
+        owner: ownerRow?.['Label (Grouping)'],
+        renter: renterRow?.['Label (Grouping)']
+    });
 
     for (const f of (bgGeojson.features || [])) {
         const p = f.properties || {};
 
-        const bgName = String(p.NAME || '').trim();  
-        if (!bgName) continue;
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
 
-        const tractPart = bgName.slice(0, -1);
-        const bgPart = bgName.slice(-1);
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
 
-        const tractNum = tractPart.length > 2
-            ? `${tractPart.slice(0, tractPart.length - 2)}.${tractPart.slice(-2)}`
-            : tractPart;
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
 
         const estimateCol =
-            `Block Group ${bgPart}; Census Tract ${tractNum}; Ingham County; Michigan!!Estimate`;
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
 
-        const rawTotal = totalRow[estimateCol];
-        const rawOwner = ownerRow[estimateCol];
-        const rawRenter = renterRow[estimateCol];
+        const numOrNull = row => {
+            const raw = String(row?.[estimateCol] ?? '').replace(/,/g, '').trim();
+            if (!raw || raw === '(X)' || raw === 'N' || raw === '-') return null;
+            const val = Number(raw);
+            return Number.isFinite(val) ? val : null;
+        };
 
-        //console.log('HOUSEHOLD LOOKUP', bgName, estimateCol, rawTotal, rawOwner, rawRenter);
-
-        p.household_total = rawTotal !== undefined && rawTotal !== ''
-            ? Number(String(rawTotal).replace(/,/g, ''))
-            : null;
-
-        p.household_owner = rawOwner !== undefined && rawOwner !== ''
-            ? Number(String(rawOwner).replace(/,/g, ''))
-            : null;
-
-        p.household_renter = rawRenter !== undefined && rawRenter !== ''
-            ? Number(String(rawRenter).replace(/,/g, ''))
-            : null;
+        p.household_total = numOrNull(totalRow);
+        p.household_owner = numOrNull(ownerRow);
+        p.household_renter = numOrNull(renterRow);
     }
 
     return bgGeojson;
@@ -470,6 +542,9 @@ function buildNeighborhoodTable(config) {
     `;
 
     box.style.display = 'block';
+    pinnedNeighborhoodName = null;
+    hoveredNeighborhoodName = null;
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
 
     document.querySelectorAll('#data-box tbody tr[data-name]').forEach(tr => {
         const name = tr.getAttribute('data-name');
@@ -525,7 +600,29 @@ function parseBgLabel(name) {
         bg: s.slice(-1)
     };
 }
+function attachDataRowInteractions() {
+    const rows = document.querySelectorAll('#data-box tbody tr[data-id]');
 
+    rows.forEach(tr => {
+        const id = String(tr.getAttribute('data-id'));
+
+        tr.addEventListener('mouseenter', () => {
+            hoveredTableId = id;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('mouseleave', () => {
+            hoveredTableId = null;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('click', () => {
+            pinnedTableId = id;
+            activeId = id;
+            updateTableAndMapHighlight();
+        });
+    });
+}
 //renders selected id list
 function renderSelectedList() {
     const list = document.getElementById('selected-list');
@@ -779,9 +876,10 @@ function toggleSelection(id) {
 }
 
 function highlightActive(id) {
-    activeId = id;
-    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', id]);
-    highlightDataRow(id);
+    activeId = String(id);
+    pinnedTableId = String(id);
+    hoveredTableId = null;
+    updateTableAndMapHighlight();
 }
 
 //implements default selection
@@ -889,7 +987,11 @@ function buildPopulationBox() {
         return;
     }
 
-    box.style.display = 'none';
+    box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
 }
 
 function buildRaceBox() {
@@ -984,6 +1086,10 @@ function buildRaceBox() {
     `;
 
     box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
 }
 function buildIncomeBox() {
     const box = document.getElementById('data-box');
@@ -1049,6 +1155,10 @@ function buildIncomeBox() {
 `;
 
     box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
 }
 
 function buildHouseholdBox() {
@@ -1174,6 +1284,10 @@ function buildNeighborhoodPopulationBox() {
     `;
 
     box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
 }
 
 function buildPlaceholderBox(label){
@@ -1289,9 +1403,25 @@ function highlightNeighborhoodRow(name) {
     const rows = document.querySelectorAll('#data-box tbody tr[data-name]');
 
     rows.forEach(tr => {
-        const rowName = String(tr.getAttribute('data-name') || '');
-        tr.classList.toggle('row-active', rowName === String(name));
+        if (tr.getAttribute('data-name') === String(name)) {
+            tr.style.background = '#fde68a';
+        } else {
+            tr.style.background = '';
+        }
     });
+}
+function updateTableAndMapHighlight() {
+    const id = pinnedTableId || hoveredTableId || null;
+
+    if (id) {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', String(id)]);
+        highlightDataRow(id);
+    } else {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+        const rows = document.querySelectorAll('#data-box tbody tr');
+        rows.forEach(tr => tr.classList.remove('row-active'));
+    }
 }
 
 function updateNeighborhoodTableAndMapHighlight() {
@@ -1302,8 +1432,10 @@ function updateNeighborhoodTableAndMapHighlight() {
         highlightNeighborhoodRow(name);
     } else {
         map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
-        document.querySelectorAll('#data-box tbody tr[data-name]').forEach(tr => {
-            tr.classList.remove('row-active');
+
+        const rows = document.querySelectorAll('#data-box tbody tr[data-name]');
+        rows.forEach(tr => {
+            tr.style.background = '';
         });
     }
 }
@@ -1336,9 +1468,13 @@ function setCommunityGardensVisible(flag) {
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
+
     rows.forEach(tr => {
-        if (tr.getAttribute('data-id') === String(id)) tr.style.background = '#fde68a';
-        else tr.style.background = '';
+        if (tr.getAttribute('data-id') === String(id)) {
+            tr.style.background = '#fde68a';
+        } else {
+            tr.style.background = '';
+        }
     });
 }
 async function resetToSouthwestLansing() {
