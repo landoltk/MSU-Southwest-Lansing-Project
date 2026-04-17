@@ -47,6 +47,7 @@ html, body {
     max-height: 320px;
     background: white;
     border: 5px solid #166534;
+    font-family: 'Spline Sans Mono', monospace;
     box-sizing: border-box;
     padding: 0;
     transform: translateX(0);
@@ -108,6 +109,7 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    font-family: 'Spline Sans Mono', monospace;
     font-size: 16px;
 }
 /* About the Team drawer pannel formatting */
@@ -176,11 +178,12 @@ html, body {
 }
 /*This is the header of "Southwest Lansing Project Prototype*/
 .sidebar-header {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Spline Sans Mono', monospace;
     font-size: 24px;
     font-weight: 700;
     padding-bottom: 12px;
     margin-bottom: 15px;
+    text-align: center;
     border-bottom: 1px solid #ddd;
 }
 
@@ -245,13 +248,16 @@ html, body {
 .about-content h3 {
     margin-top: 6px;
     margin-bottom: 8px;
+    font-family: 'Spline Sans Mono', monospace;
 }
 /* This is how each team member will be displayed in the about the team tab*/
 .team-member {
     display: flex;
     align-items: flex-start;
+    margin-left: 15px;
     gap: 16px;
     padding: 12px 0;
+    font-family: 'Spline Sans Mono', monospace;
     border-top: 3px solid #3FA34D;
 }
 
@@ -269,14 +275,15 @@ html, body {
 }
 .member-text h4 {
     font-size: 22px;              
-    font-family: "Playfair Display", sans-serif;  
+    font-family: 'Spline Sans Mono', monospace;
     font-weight: 700;              
     margin: 0 0 4px 0;    
 }
 .about-header h2,
 .about-content h3,
 .member-text h4 {
-    font-family: "Playfair Display", serif;
+    font-weight: 700;
+    font-family: 'Spline Sans Mono', monospace;
 }
 .partner-thanks {
     margin-top: 20px;
@@ -286,6 +293,7 @@ html, body {
     text-align: center;
     font-weight: 700;
     margin-bottom: 8px;
+    font-family: 'Spline Sans Mono', monospace;
 }
 
 .partner-thanks p {
@@ -296,14 +304,17 @@ html, body {
 }
 .about-header h2 {
     text-align: center;
+    font-family: 'Spline Sans Mono', monospace;
     margin: 0;
 }
 
 .about-content h3 {
     text-align: center;
     margin-top: 10px;
+    font-family: 'Spline Sans Mono', monospace;
 }
 .member-text h4 {
+    font-weight: 700;
     margin-bottom: 10px; 
 }
 
@@ -319,6 +330,7 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-top: 10px;
 }
 
 #selected-filter-display {
@@ -336,6 +348,7 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0px;
 }
 .bg-link.active {
     color: purple;
@@ -352,7 +365,8 @@ html, body {
 
 #selected-filter-display {
     margin: 0;
-    flex: 1;            
+    flex: 1;
+    font-family: 'Spline Sans Mono', monospace;
     min-width: 0;  
 }
 
@@ -369,7 +383,9 @@ html, body {
     background: #f8fafc;
     color: #0f172a;
 }
-
+#details {
+    font-family: 'Spline Sans Mono', monospace;
+}
 .data-box h4 {
     margin: 0 0 8px 0;
     color: #166534;
@@ -414,12 +430,14 @@ html, body {
 .display-method-section h3 {
     margin: 0 0 12px 0;
     font-size: 18px;
+    font-family: 'Spline Sans Mono', monospace;
     font-weight: 700;
 }
 
 .display-methods {
     display: flex;
     flex-wrap: wrap;
+    font-family: 'Spline Sans Mono', monospace;
     gap: 12px 24px;
 }
 
@@ -438,6 +456,7 @@ html, body {
 }
 
 .display-method-header h3 {
+    font-family: 'Spline Sans Mono', monospace;
     margin: 0;
 }
 .demo-drawer-panel {
@@ -447,12 +466,13 @@ html, body {
     width: 390px;
     height: calc(100% + 10px);
     background: white;
-    border: 5px solid #166534;
+    border: 10px solid #166534;
     box-sizing: border-box;
     padding: 0;
     transform: translateX(0);
     transition: transform 0.3s ease;
     z-index: 1;
+    font-family: 'Spline Sans Mono', monospace;
     overflow-y: auto;
 }
 
@@ -489,19 +509,20 @@ html, body {
     border-bottom: 5px solid #3FA34D;
     margin: 0 0 10px 0;
     text-align: center;
-    font-family: "Playfair Display", serif;
+    font-family: 'Spline Sans Mono', monospace;
 }
 
 .demo-drawer-content {
     padding: 16px 18px 18px 18px;
     line-height: 1.5;
+    font-family: 'Spline Sans Mono', monospace;
 }
 
 .demo-drawer-content h3 {
     text-align: center;
     margin-top: 10px;
     margin-bottom: 8px;
-    font-family: "Playfair Display", serif;
+    font-family: 'Spline Sans Mono', monospace;
 }
 .drawer-handle {
     top: 160px;
