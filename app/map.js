@@ -687,67 +687,106 @@ function applyDefaultSelection(ids) {
     updateShowDataButton()
 }
 
+//block level data aggregation for block groups
+function aggregateBlocksByBg() {
+    const src = map.getSource('blocks')?._data
+    if (!src) return {}
+
+    const out = {}
+
+    for (const f of src.features ?? []) {
+    const p = f.properties ?? {}
+    const blockId = String(p.GEOID20)
+    if (!selectedBlockIds.has(blockId)) continue
+
+    const bg = p.JOINKEY12
+    if (!bg) continue
+
+    if (!out[bg]) {
+    out[bg] = { pop: 0, housing: 0 }
+    }
+
+    out[bg].pop += Number(p.POP20) || 0
+    out[bg].housing += Number(p.HOUSING20) || 0
+    }
+
+    return out
+}
+
+//formatting helper for geoids
+function formatBgId(joinKey12) {
+    const d = String(joinKey12 ?? '').replace(/\D/g, '');
+    if (d.length !== 12) return joinKey12;
+
+    const county = parseInt(d.slice(2, 5), 10);
+
+    const tractRaw = d.slice(5, 11);
+    const tract =
+    `${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)}`;
+
+    const bg = parseInt(d.slice(11), 10);
+
+    return `County ${county} · Tract ${tract} · Block Group ${bg}`;
+}
+
 //different filters data visualization boxes
 function buildPopulationBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
 
-    if (!selectedIds.size) {
-        box.style.display = 'none';
-        return;
-    }
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
 
-    let groupTotal = 0;
+        const byBg = {};
+        let grandTotal = 0;
 
-    const rows = [...selectedIds].map(id => {
-        const name = idToName.get(id) || id;
-        const row = idToRow.get(id) || {};
-        const raw = row['B01003_001E'];
-        const val = Number(raw);
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            if (!selectedBlockIds.has(String(p.GEOID20))) continue;
+            const bg = p.JOINKEY12;
+            if (!bg) continue;
 
-        const total = Number.isFinite(val) ? val : 0;
-        groupTotal += total;
+            const pop = Number(p.POP20) || 0;
+            byBg[bg] = (byBg[bg] || 0) + pop;
+            grandTotal += pop;
+        }
 
-        return {
-            name,
-            total
-        };
-    });
-
-    const rowsHtml = `
-        <tr style="font-weight:bold;background:#f3f4f6;">
-            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">
-                Group Total
-            </td>
+        content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+            <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Total</td>
             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
-                ${groupTotal.toLocaleString()}
+            ${grandTotal.toLocaleString()}
             </td>
-        </tr>
-    ` + rows.map(({ name, total }) => `
-        <tr>
+            </tr>
+            ${Object.entries(byBg).map(([bg, total]) => `
+            <tr data-id="${bg}">
             <td style="padding:6px 8px;border-bottom:1px solid #eee;">
-                ${name}
+                ${formatBgId(bg)}
             </td>
             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
                 ${total.toLocaleString()}
             </td>
-        </tr>
-    `).join('');
-
-    content.innerHTML = `
-        <table style="border-collapse:collapse;width:100%">
-            <thead>
-                <tr>
-                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
-                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
-                </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
+            </tr>
+            `).join('')}
+            </tbody>
         </table>
-    `;
+        `;
+        box.style.display = 'block';
+        return;
+    }
 
-    box.style.display = 'block';
+    box.style.display = 'none';
 }
+
 function buildRaceBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -906,91 +945,78 @@ function buildIncomeBox() {
 
     box.style.display = 'block';
 }
+
 function buildHouseholdBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
 
-    if (!selectedIds.size) {
-        box.style.display = 'none';
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
+
+        const byBg = {};
+        let totalHousing = 0;
+        let totalPopulation = 0;
+
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            if (!selectedBlockIds.has(String(p.GEOID20))) continue;
+            const bg = p.JOINKEY12;
+            if (!bg) continue;
+
+            const housing = Number(p.HOUSING20) || 0;
+            const pop = Number(p.POP20) || 0;
+
+            if (!byBg[bg]) byBg[bg] = { housing: 0, pop: 0 };
+            byBg[bg].housing += housing;
+            byBg[bg].pop += pop;
+
+            totalHousing += housing;
+            totalPopulation += pop;
+        }
+
+        content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+            <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Housing Units</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Avg Household Size</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Total</td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+            ${totalHousing.toLocaleString()}
+            </td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+            ${totalHousing ? (totalPopulation / totalHousing).toFixed(2) : '—'}
+            </td>
+            </tr>
+            ${Object.entries(byBg).map(([bg, v]) => `
+            <tr data-id="${bg}">
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${formatBgId(bg)}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${v.housing.toLocaleString()}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${v.housing ? (v.pop / v.housing).toFixed(2) : '—'}
+            </td>
+            </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        `;
+        box.style.display = 'block';
         return;
     }
 
-    const rows = [...selectedIds].map(id => {
-        const feature = (blockGroupGeojson.features || []).find(
-            f => String(f.properties?.JOINKEY12) === String(id)
-        );
-
-        const p = feature?.properties || {};
-        const name = idToName.get(id) || id;
-
-        return {
-            id,
-            name,
-            total: p.household_total,
-            owner: p.household_owner,
-            renter: p.household_renter
-        };
-    });
-
-    const validTotals = rows.map(r => r.total).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
-    const validOwners = rows.map(r => r.owner).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
-    const validRenters = rows.map(r => r.renter).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
-
-    const avgTotal = validTotals.length
-        ? (validTotals.reduce((a, b) => a + b, 0) / validTotals.length).toFixed(2)
-        : '0.00';
-
-    const avgOwner = validOwners.length
-        ? (validOwners.reduce((a, b) => a + b, 0) / validOwners.length).toFixed(2)
-        : '0.00';
-
-    const avgRenter = validRenters.length
-        ? (validRenters.reduce((a, b) => a + b, 0) / validRenters.length).toFixed(2)
-        : '0.00';
-
-    content.innerHTML = `
-        <div style="margin-bottom:10px; font-size:13px; color:#555;">
-            Average people per owned and rented household<br>
-            Data from U.S. Census Bureau, ACS 5-Year Estimates
-        </div>
-
-        <div style="margin-bottom:8px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px;">
-            <strong>Group Averages</strong><br>
-            Total: ${avgTotal} &nbsp; | &nbsp; Owned: ${avgOwner} &nbsp; | &nbsp; Rented: ${avgRenter}
-        </div>
-
-        <div style="overflow-x:auto;">
-            <table style="border-collapse:collapse;width:100%; min-width:700px;">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
-                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
-                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Owned</th>
-                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Rented</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows.map(r => `
-                        <tr data-id="${r.id}">
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${r.name}</td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
-                                ${r.total !== null && r.total !== undefined ? Number(r.total).toFixed(2) : '(NULL)'}
-                            </td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
-                                ${r.owner !== null && r.owner !== undefined ? Number(r.owner).toFixed(2) : '(NULL)'}
-                            </td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
-                                ${r.renter !== null && r.renter !== undefined ? Number(r.renter).toFixed(2) : '(NULL)'}
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    box.style.display = 'block';
+    box.style.display = 'none';
 }
+
 function buildNeighborhoodPopulationBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -1520,24 +1546,31 @@ map.on('load', async () => {
             syncBlockSelectedFill()
         });
 
-        //block hover
+        //block hover to show formatted id
+        function formatBlockId(geoid20) {
+            const d = String(geoid20 ?? '').replace(/\D/g, '')
+            if (d.length !== 15) return geoid20
+            const tractRaw = d.slice(5, 11); 
+            return `County ${parseInt(d.slice(2, 5), 10)} · Tract ${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)} · Block Group ${d.slice(11, 12)} · Block ${parseInt(d.slice(12), 10)}`
+        }
+
         map.on('mousemove', 'block-selected', e => {
             if (selectionMode !== SelectionMode.LOCKED) return
             if (!e.features?.length) return
+
             const p = e.features[0].properties ?? {}
-            const pop = p.POP20 ?? 'N/A'
-            const housing = p.HOUSING20 ?? 'N/A'
+            const label = formatBlockId(p.GEOID20)
+
             map.getCanvas().style.cursor = 'pointer'
             blockHoverPopup
-                .setLngLat(e.lngLat)
-                .setHTML(
-                `<div style="font:12px/1.3 sans-serif">
-                    <div><strong>Block</strong></div>
-                    <div>Population: ${pop}</div>
-                    <div>Housing Units: ${housing}</div>
-                </div>`
-                )
-                .addTo(map)
+            .setLngLat(e.lngLat)
+            .setHTML(
+            `<div style="font:12px/1.3 sans-serif">
+                <div><strong>Block ID</strong></div>
+                <div>${label}</div>
+            </div>`
+            )
+            .addTo(map)
         });
 
         map.on('mouseleave', 'block-selected', () => {
