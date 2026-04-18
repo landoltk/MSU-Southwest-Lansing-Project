@@ -31,7 +31,8 @@ let selectionModeBG = 'block'; // 'block' or 'neighborhood'
 const selectedNeighborhoods = new Set();
 let blockGroupGeojson = null;
 let lastRadiusCircle = null;
-
+let pinnedTableId = null;
+let hoveredTableId = null;
 let hoveredNeighborhoodName = null;
 let pinnedNeighborhoodName = null;
 
@@ -528,6 +529,30 @@ function parseBgLabel(name) {
     };
 }
 
+function attachDataRowInteractions() {
+    const rows = document.querySelectorAll('#data-box tbody tr[data-id]');
+
+    rows.forEach(tr => {
+        const id = String(tr.getAttribute('data-id'));
+
+        tr.addEventListener('mouseenter', () => {
+            hoveredTableId = id;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('mouseleave', () => {
+            hoveredTableId = null;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('click', () => {
+            pinnedTableId = id;
+            activeId = id;
+            updateTableAndMapHighlight();
+        });
+    });
+}
+
 //renders selected id list
 function renderSelectedList() {
     const list = document.getElementById('selected-list');
@@ -647,6 +672,33 @@ function clearRadiusCircle() {
     }
 }
 
+function recomputeSelectedIdsFromBlocks() {
+    selectedIds.clear();
+
+    const blockSource = map.getSource('blocks')?._data;
+    if (!blockSource) {
+        syncSelectedFill();
+        renderSelectedList();
+        updateShowDataButton();
+        return;
+    }
+
+    for (const feature of (blockSource.features || [])) {
+        const blockId = String(feature.properties?.GEOID20 ?? '');
+        if (!blockId || !selectedBlockIds.has(blockId)) continue;
+
+        const bgId =
+            String(feature.properties?.JOINKEY12 ?? '') ||
+            key12FromBlockGEOID(blockId);
+
+        if (bgId) selectedIds.add(bgId);
+    }
+
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+}
+
 function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
     if (!blockGroupGeojson || !map.getSource('radius-circle')) return;
     if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
@@ -716,6 +768,10 @@ function selectBlocksByRadius(centerLngLat, radiusMiles) {
     }
 
     syncBlockSelectedFill();
+    recomputeSelectedIdsFromBlocks();
+
+    activeId = null;
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
 
     const details = document.getElementById('details');
     if (details) {
@@ -1347,6 +1403,20 @@ function highlightNeighborhoodRow(name) {
     });
 }
 
+function updateTableAndMapHighlight() {
+    const id = pinnedTableId || hoveredTableId || null;
+
+    if (id) {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', String(id)]);
+        highlightDataRow(id);
+    } else {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+        const rows = document.querySelectorAll('#data-box tbody tr');
+        rows.forEach(tr => tr.classList.remove('row-active'));
+    }
+}
+
 function updateNeighborhoodTableAndMapHighlight() {
     const name = pinnedNeighborhoodName || hoveredNeighborhoodName || null;
 
@@ -1401,16 +1471,29 @@ async function resetToSouthwestLansing() {
     const ids = await fetchRequestedBgs();
 
     selectedIds.clear();
+    selectedBlockIds.clear();
+    selectedNeighborhoods.clear();
     activeId = null;
+    pinnedTableId = null;
+    hoveredTableId = null;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+    lastSubmittedIds = [];
 
     ids.forEach(id => selectedIds.add(String(id)));
 
+    selectionModeBG = 'block';
     syncSelectedFill();
     renderSelectedList();
     updateShowDataButton();
+    clearNeighborhoodBaseFill();
+    syncBlockSelectedFill();
 
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     clearRadiusCircle();
+    setCommunityGardensVisible(false);
+
+    document.getElementById('reset-last-selection').disabled = true;
     document.getElementById('data-box').style.display = 'none';
     document.getElementById('details').textContent = 'Click a polygon to view details.';
     updateDisplayMethodUI();
@@ -1462,6 +1545,7 @@ async function setSelectionMode(mode) {
     selectionMode = mode
     syncSelectionModeUI()
     syncSelectionHeader()
+    updateDisplayMethodUI()
 
     if (mode === SelectionMode.BG_SELECT) {
         map.setLayoutProperty('bg-fill', 'visibility', 'visible')
@@ -1473,6 +1557,7 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-selected', 'visibility', 'none')
         map.setLayoutProperty('block-selected-outline', 'visibility', 'none')
         selectedBlockIds.clear()
+        syncBlockSelectedFill()
         updateShowDataButton()
         return
     }
@@ -1494,6 +1579,7 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-selected', 'visibility', 'visible')
         map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
         syncBlockSelectedFill()
+        recomputeSelectedIdsFromBlocks()
         updateShowDataButton()
         return
     }
@@ -1504,6 +1590,7 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-selected', 'visibility', 'visible')
         map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
         syncBlockSelectedFill()
+        recomputeSelectedIdsFromBlocks()
         updateShowDataButton()
     }
 }
@@ -1724,6 +1811,7 @@ map.on('load', async () => {
             if (selectedBlockIds.has(id)) selectedBlockIds.delete(id)
             else selectedBlockIds.add(id)
             syncBlockSelectedFill()
+            recomputeSelectedIdsFromBlocks()
         });
 
         //block hover to show formatted id
@@ -1762,6 +1850,8 @@ map.on('load', async () => {
         applyDefaultSelection(ids);
         setStatus(`Loaded ${ids.length} BG(s) from list`);
         syncSelectionModeUI();
+        syncSelectionHeader();
+        updateDisplayMethodUI();
     } catch (e) {
         console.error(e);
         setStatus('Error loading data');
@@ -1801,6 +1891,8 @@ document.getElementById('clear-selection').addEventListener('click', () => {
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     clearRadiusCircle();
+    selectedBlockIds.clear();
+    syncBlockSelectedFill();
     renderSelectedList();
     document.getElementById('data-box').style.display = 'none';
     syncSelectionModeUI();
@@ -1820,8 +1912,8 @@ document.getElementById('submit-selection').addEventListener('click', () => {
     }
 
     if (selectionMode === SelectionMode.BLOCK_SELECT) {
+        if (!selectedBlockIds.size) return
         setSelectionMode(SelectionMode.LOCKED)
-        return
     }
 });
 
@@ -2001,31 +2093,30 @@ const drawerPanel = document.getElementById('drawer-panel');
 
 const filtersDrawerToggle = document.getElementById('filters-drawer-toggle');
 const filtersDrawerPanel = document.getElementById('filters-drawer-panel');
+
 const demoDrawerToggle = document.getElementById('demo-drawer-toggle');
 const demoDrawerPanel = document.getElementById('demo-drawer-panel');
-
-const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
-const radiusCheckbox = document.getElementById('radius-display');
-const resetSwlBtn = document.getElementById('reset-swl');
 
 function closeAllDrawers() {
     drawerPanel.classList.remove('open');
     drawerToggle.classList.remove('open');
+
     filtersDrawerPanel.classList.remove('open');
     filtersDrawerToggle.classList.remove('open');
+
     demoDrawerPanel.classList.remove('open');
     demoDrawerToggle.classList.remove('open');
 }
 
 function switchDrawer(panel, toggle) {
     const isAlreadyOpen = panel.classList.contains('open');
+
     closeAllDrawers();
 
     if (!isAlreadyOpen) {
         setTimeout(() => {
             panel.classList.add('open');
             toggle.classList.add('open');
-
             if (toggle === demoDrawerToggle) {
                 drawerToggle.classList.add('open');
                 filtersDrawerToggle.classList.add('open');
@@ -2034,15 +2125,28 @@ function switchDrawer(panel, toggle) {
     }
 }
 
-drawerToggle.addEventListener('click', () => switchDrawer(drawerPanel, drawerToggle));
-filtersDrawerToggle.addEventListener('click', () => switchDrawer(filtersDrawerPanel, filtersDrawerToggle));
-demoDrawerToggle.addEventListener('click', () => switchDrawer(demoDrawerPanel, demoDrawerToggle));
+drawerToggle.addEventListener('click', () => {
+    switchDrawer(drawerPanel, drawerToggle);
+});
 
-document.querySelectorAll('.display-checkbox').forEach(cb => {
+filtersDrawerToggle.addEventListener('click', () => {
+    switchDrawer(filtersDrawerPanel, filtersDrawerToggle);
+});
+
+demoDrawerToggle.addEventListener('click', () => {
+    switchDrawer(demoDrawerPanel, demoDrawerToggle);
+});
+
+const displayCheckboxes = document.querySelectorAll('.display-checkbox');
+const resetSwlBtn = document.getElementById('reset-swl');
+
+displayCheckboxes.forEach(cb => {
     cb.addEventListener('change', () => {
         if (cb.checked) {
-            document.querySelectorAll('.display-checkbox').forEach(other => {
-                if (other !== cb) other.checked = false;
+            displayCheckboxes.forEach(other => {
+                if (other !== cb) {
+                    other.checked = false;
+                }
             });
 
             if (cb.id !== 'neighborhoods-display' && selectionModeBG === 'neighborhood') {
@@ -2058,16 +2162,9 @@ document.querySelectorAll('.display-checkbox').forEach(cb => {
     });
 });
 
-if (neighborhoodsCheckbox) {
-    neighborhoodsCheckbox.addEventListener('change', () => {
-        if (neighborhoodsCheckbox.checked) {
-            selectAllNeighborhoods();
-        } else {
-            exitNeighborhoodMode();
-        }
-        updateDisplayMethodUI();
-    });
-}
+const radiusCheckbox = document.getElementById('radius-display');
+const zipcodesCheckbox = document.getElementById('zipcodes-display');
+const blockCheckbox = document.getElementById('block-display');
 
 if (radiusCheckbox) {
     radiusCheckbox.addEventListener('change', () => {
@@ -2078,12 +2175,48 @@ if (radiusCheckbox) {
     });
 }
 
-if (resetSwlBtn) {
-    resetSwlBtn.addEventListener('click', async () => {
-        document.querySelectorAll('.display-checkbox').forEach(cb => cb.checked = false);
-        await resetToSouthwestLansing();
+if (zipcodesCheckbox) {
+    zipcodesCheckbox.addEventListener('change', () => {
+        clearRadiusCircle();
+        updateDisplayMethodUI();
     });
 }
+
+if (blockCheckbox) {
+    blockCheckbox.addEventListener('change', () => {
+        updateDisplayMethodUI();
+    });
+}
+
+const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
+
+if (neighborhoodsCheckbox) {
+    neighborhoodsCheckbox.addEventListener('change', () => {
+        if (neighborhoodsCheckbox.checked) {
+            selectAllNeighborhoods();
+        } else {
+            exitNeighborhoodMode();
+        }
+
+        clearRadiusCircle();
+        updateDisplayMethodUI();
+    });
+}
+
+resetSwlBtn.addEventListener('click', async () => {
+    displayCheckboxes.forEach(cb => {
+        cb.checked = false;
+    });
+
+    filterIds.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    updateSelectedFilterText();
+    await setSelectionMode(SelectionMode.BG_SELECT);
+    await resetToSouthwestLansing();
+});
 
 document.getElementById('reload').addEventListener('click', async () => {
     await resetToSouthwestLansing();
