@@ -184,6 +184,83 @@ async function joinAcsToBgs(acsUrl, bgUrl) {
 
     return bg
 }
+async function joinRaceToBgs(bgGeojson) {
+    const raceRows = await fetchCsvRows('static/data/race_data.csv');
+
+    const totalRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('total:');
+    });
+
+    const whiteRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('white alone');
+    });
+
+    const blackRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('black or african american alone');
+    });
+
+    const nativeRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('american indian and alaska native alone');
+    });
+
+    const asianRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('asian alone');
+    });
+
+    const pacificRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('native hawaiian and other pacific islander alone');
+    });
+
+    const otherRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('some other race alone');
+    });
+
+    const twoPlusRow = raceRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('two or more races');
+    });
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!joinKey) continue;
+
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
+
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
+
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+
+        const estimateCol =
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
+
+        const num = row => Number(String(row?.[estimateCol] ?? '').replace(/,/g, '')) || 0;
+
+        p.race_total = num(totalRow);
+        p.race_white = num(whiteRow);
+        p.race_black = num(blackRow);
+        p.race_native = num(nativeRow);
+        p.race_asian = num(asianRow);
+        p.race_pacific = num(pacificRow);
+        p.race_other = num(otherRow);
+        p.race_two_plus = num(twoPlusRow);
+    }
 
 async function joinRaceToBgs(bgGeojson) {
     const raceRows = await fetchRaceRows();
@@ -265,6 +342,113 @@ async function fetchRequestedBgs() {
         .map(s => key12FromBgGEOID(s))
         .filter(Boolean);
 }
+async function fetchRaceRows() {
+    const rows = await fetchCsvRows('static/data/race_data.csv');
+    const out = {};
+
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            race_total: row.race_total,
+            race_white: row.race_white,
+            race_black: row.race_black,
+            race_native: row.race_native,
+            race_asian: row.race_asian,
+            race_pacific: row.race_pacific,
+            race_other: row.race_other,
+            race_two_plus: row.race_two_plus
+        };
+    });
+
+    return out;
+}
+async function fetchIncomeRows() {
+    const rows = await fetchCsvRows('static/data/income_data.csv');
+    const out = {};
+
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            income_median: row.income_median
+        };
+    });
+
+    return out;
+}
+async function fetchHouseholdRows() {
+    const rows = await fetchCsvRows('static/data/household_ownership_data.csv');
+    const out = {};
+
+    rows.forEach(row => {
+        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
+        if (!key) return;
+
+        out[key] = {
+            household_total: row.household_total,
+            household_owner: row.household_owner,
+            household_renter: row.household_renter
+        };
+    });
+
+    return out;
+}
+async function joinIncomeToBgs(bgGeojson) {
+    const incomeRows = await fetchCsvRows('static/data/income_data.csv');
+
+    // Find the row that actually contains the median household income values
+    const incomeRow = incomeRows.find(row => {
+        const label = String(row['Label (Grouping)'] || '').toLowerCase();
+        return label.includes('median household income');
+    });
+
+    if (!incomeRow) {
+        console.error('Could not find median household income row in CSV');
+        return bgGeojson;
+    }
+
+    for (const f of (bgGeojson.features || [])) {
+        const p = f.properties || {};
+        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
+        if (!joinKey) continue;
+
+        // Convert JOINKEY12 like 260650017031 into the same ACS-style column header
+        const countyCode = joinKey.slice(2, 5);
+        const tract6 = joinKey.slice(5, 11);
+        const bg = joinKey.slice(11);
+
+        const countyMap = {
+            '065': 'Ingham',
+            '045': 'Eaton',
+            '037': 'Clinton'
+        };
+
+        const countyName = countyMap[countyCode];
+        if (!countyName) continue;
+
+        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
+
+        const estimateCol =
+            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
+
+        const rawIncome = incomeRow[estimateCol];
+        p.income_median = Number(String(rawIncome ?? '').replace(/[$,]/g, '')) || 0;
+
+        //console.log(joinKey, estimateCol, rawIncome, p.income_median);
+    }
+
+    return bgGeojson;
+}
+async function joinHouseholdToBgs(bgGeojson) {
+    const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
+    
+
+    console.log('Household labels:',
+        householdRows.map(r => r['Label (Grouping)']).filter(Boolean)
+    );
 
 async function fetchRaceRows() {
     return await fetchCsvRows('static/data/race_data.csv');
@@ -552,7 +736,29 @@ function attachDataRowInteractions() {
         });
     });
 }
+function attachDataRowInteractions() {
+    const rows = document.querySelectorAll('#data-box tbody tr[data-id]');
 
+    rows.forEach(tr => {
+        const id = String(tr.getAttribute('data-id'));
+
+        tr.addEventListener('mouseenter', () => {
+            hoveredTableId = id;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('mouseleave', () => {
+            hoveredTableId = null;
+            updateTableAndMapHighlight();
+        });
+
+        tr.addEventListener('click', () => {
+            pinnedTableId = id;
+            activeId = id;
+            updateTableAndMapHighlight();
+        });
+    });
+}
 //renders selected id list
 function renderSelectedList() {
     const list = document.getElementById('selected-list');
@@ -799,7 +1005,6 @@ function updateSelectedFilterText() {
         el.textContent = 'Selected Filter: None';
     }
 }
-
 function key12FromGeoName(name) {
     const s = String(name ?? '').trim();
 
@@ -843,6 +1048,560 @@ function syncSelectedFill() {
         ['literal', [...selectedIds]]
     ]);
 }
+function syncNeighborhoodBaseFill() {
+    const neighborhoodIds = [...new Set(
+        Object.values(neighborhoodToBgs).flat().map(String)
+    )];
+
+    map.setFilter('neighborhood-base-fill', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', neighborhoodIds]
+    ]);
+}
+function clearNeighborhoodBaseFill() {
+    map.setFilter('neighborhood-base-fill', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', []]
+    ]);
+}
+
+function syncBlockSelectedFill() {
+    map.setFilter('block-selected', [
+        'in',
+        ['get', 'GEOID20'],
+        ['literal', [...selectedBlockIds]]
+    ]);
+}
+
+function toggleSelection(id) {
+    const key = String(id);
+    if (selectedIds.has(key)) selectedIds.delete(key);
+    else selectedIds.add(key);
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+}
+
+function highlightActive(id) {
+    activeId = String(id);
+    pinnedTableId = String(id);
+    hoveredTableId = null;
+    updateTableAndMapHighlight();
+}
+
+//implements default selection
+function applyDefaultSelection(ids) {
+    ids.forEach(id => selectedIds.add(String(id)));
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton()
+}
+
+//block level data aggregation for block groups
+function aggregateBlocksByBg() {
+    const src = map.getSource('blocks')?._data
+    if (!src) return {}
+
+    const out = {}
+
+    for (const f of src.features ?? []) {
+    const p = f.properties ?? {}
+    const blockId = String(p.GEOID20)
+    if (!selectedBlockIds.has(blockId)) continue
+
+    const bg = p.JOINKEY12
+    if (!bg) continue
+
+    if (!out[bg]) {
+    out[bg] = { pop: 0, housing: 0 }
+    }
+
+    out[bg].pop += Number(p.POP20) || 0
+    out[bg].housing += Number(p.HOUSING20) || 0
+    }
+
+    return out
+}
+
+//formatting helper for geoids
+function formatBgId(joinKey12) {
+    const d = String(joinKey12 ?? '').replace(/\D/g, '');
+    if (d.length !== 12) return joinKey12;
+
+    const county = parseInt(d.slice(2, 5), 10);
+
+    const tractRaw = d.slice(5, 11);
+    const tract =
+    `${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)}`;
+
+    const bg = parseInt(d.slice(11), 10);
+
+    return `County ${county} · Tract ${tract} · Block Group ${bg}`;
+}
+
+//different filters data visualization boxes
+function buildPopulationBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
+
+        const byBg = {};
+        let grandTotal = 0;
+
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            if (!selectedBlockIds.has(String(p.GEOID20))) continue;
+            const bg = p.JOINKEY12;
+            if (!bg) continue;
+
+            const pop = Number(p.POP20) || 0;
+            byBg[bg] = (byBg[bg] || 0) + pop;
+            grandTotal += pop;
+        }
+
+        content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+            <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Total</td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+            ${grandTotal.toLocaleString()}
+            </td>
+            </tr>
+            ${Object.entries(byBg).map(([bg, total]) => `
+            <tr data-id="${bg}">
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${formatBgId(bg)}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${total.toLocaleString()}
+            </td>
+            </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        `;
+        box.style.display = 'block';
+        return;
+    }
+
+    box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
+}
+
+function buildRaceBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rows = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+
+        return {
+            id,
+            name,
+            total: Number(p.race_total) || 0,
+            white: Number(p.race_white) || 0,
+            black: Number(p.race_black) || 0,
+            asian: Number(p.race_asian) || 0,
+            other:
+                (Number(p.race_native) || 0) +
+                (Number(p.race_other) || 0) +
+                (Number(p.race_two_plus) || 0)
+        };
+    });
+
+    const totals = rows.reduce(
+        (acc, r) => {
+            acc.total += r.total;
+            acc.white += r.white;
+            acc.black += r.black;
+            acc.asian += r.asian;
+            acc.other += r.other;
+            return acc;
+        },
+        {
+            total: 0,
+            white: 0,
+            black: 0,
+            asian: 0,
+            other: 0
+        }
+    );
+
+    content.innerHTML = `
+        <div style="margin-bottom:10px; font-size:13px; color:#555;">
+            Race data acquired from 2020 Census
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table style="border-collapse:collapse;width:100%; min-width:800px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="font-weight:bold;background:#f3f4f6;">
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Group Total</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.total.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.white.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.black.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.asian.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.other.toLocaleString()}</td>
+                    </tr>
+
+                    ${rows.map(r => `
+                        <tr data-id="${r.id}">
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(r.name)}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.asian.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.other.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
+}
+function buildIncomeBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedIds.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    const rows = [...selectedIds].map(id => {
+        const feature = (blockGroupGeojson.features || []).find(
+            f => String(f.properties?.JOINKEY12) === String(id)
+        );
+
+        const p = feature?.properties || {};
+        const name = idToName.get(id) || id;
+        const income = Number(p.income_median)
+
+        return { id, name, income };
+    });
+
+    const validIncomes = rows
+        .map(r => r.income)
+        .filter(v => Number.isFinite(v) && v > 0);
+
+    const avgIncome = validIncomes.length
+        ? Math.round(validIncomes.reduce((sum, v) => sum + v, 0) / validIncomes.length)
+        : 0;
+
+    content.innerHTML = `
+    <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
+        Average Median Household Income: $${avgIncome.toLocaleString()}
+    </div>
+
+    <div style="margin-bottom:10px; font-size:13px; color:#555;">
+        Data from U.S. Census Bureau, ACS 5-Year Estimates
+    </div>
+
+    <table style="border-collapse:collapse;width:100%">
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Median Household Income</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rows.map(({ id, name, income }) => `
+                <tr data-id="${id}">
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(name)}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                        ${Number.isFinite(income) && income > 0 
+                        ? `$${income.toLocaleString()}` 
+                        : '(NULL)'}
+                    </td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    <div style="margin-top:10px; font-size:13px; color:#555;">
+    (NULL) means there was not enough valid household income data for that block group
+    </div>
+`;
+
+    box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
+}
+
+function buildHouseholdBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
+
+        const byBg = {};
+        let totalHousing = 0;
+        let totalPopulation = 0;
+
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            if (!selectedBlockIds.has(String(p.GEOID20))) continue;
+            const bg = p.JOINKEY12;
+            if (!bg) continue;
+
+            const housing = Number(p.HOUSING20) || 0;
+            const pop = Number(p.POP20) || 0;
+
+            if (!byBg[bg]) byBg[bg] = { housing: 0, pop: 0 };
+            byBg[bg].housing += housing;
+            byBg[bg].pop += pop;
+
+            totalHousing += housing;
+            totalPopulation += pop;
+        }
+
+        content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+            <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Housing Units</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Avg Household Size</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Total</td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+            ${totalHousing.toLocaleString()}
+            </td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+            ${totalHousing ? (totalPopulation / totalHousing).toFixed(2) : '—'}
+            </td>
+            </tr>
+            ${Object.entries(byBg).map(([bg, v]) => `
+            <tr data-id="${bg}">
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${formatBgId(bg)}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${v.housing.toLocaleString()}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${v.housing ? (v.pop / v.housing).toFixed(2) : '—'}
+            </td>
+            </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        `;
+        box.style.display = 'block';
+        return;
+    }
+
+    box.style.display = 'none';
+}
+
+function buildNeighborhoodPopulationBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    if (!selectedNeighborhoods.size) {
+        box.style.display = 'none';
+        return;
+    }
+
+    let groupTotal = 0;
+
+    const rows = [...selectedNeighborhoods].map(name => {
+        const total = getNeighborhoodPopulation(name);
+        groupTotal += total;
+    
+        return { name, total };
+    });
+    
+    const rowsHtml = `
+        <tr style="font-weight:bold;background:#f3f4f6;">
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">
+                Group Total
+            </td>
+            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">
+                ${groupTotal.toLocaleString()}
+            </td>
+        </tr>
+    ` +
+    rows.map(({ name, total }) => `
+        <tr data-name="${name}">
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
+                ${name}
+            </td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                ${total.toLocaleString()}
+            </td>
+        </tr>
+    `).join('');
+
+    content.innerHTML = `
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Neighborhood</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Population</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+
+    box.style.display = 'block';
+    pinnedTableId = null;
+    hoveredTableId = null;
+    attachDataRowInteractions();
+    updateTableAndMapHighlight();
+}
+
+function buildPlaceholderBox(label){
+    const box = document.getElementById('data-box')
+    const content = document.getElementById('data-box-content')
+    content.innerHTML = `<h4>${label}</h4><p>Data coming soon.</p>`
+    box.style.display = 'block'
+}
+function selectAllNeighborhoods() {
+    selectionModeBG = 'neighborhood';
+
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    activeId = null;
+    selectionLocked = false;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+
+    syncNeighborhoodBaseFill();
+    syncSelectedFill();
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+
+    renderSelectedList();
+    updateShowDataButton();
+
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent =
+        'Click a white neighborhood block group to select its neighborhood(s).';
+}
+
+function exitNeighborhoodMode() {
+    selectionModeBG = 'block';
+
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    activeId = null;
+
+    clearNeighborhoodBaseFill();
+    syncSelectedFill();
+    renderSelectedList();
+    updateShowDataButton();
+
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    document.getElementById('data-box').style.display = 'none';
+    document.getElementById('details').textContent = 'Click a polygon to view details.';
+}
+
+function highlightNeighborhood(name) {
+    if (!name) {
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+        return;
+    }
+
+function key12FromGeoName(name) {
+    const s = String(name ?? '').trim();
+
+    const bgMatch = s.match(/Block Group\s+(\d+)/i);
+    const tractMatch = s.match(/Census Tract\s+([\d.]+)/i);
+    const countyMatch = s.match(/(Ingham|Eaton|Clinton)\s+County/i);
+
+    if (!bgMatch || !tractMatch || !countyMatch) return null;
+
+    const bg = bgMatch[1];
+    const tractRaw = tractMatch[1].replace('.', '');
+    const tract = tractRaw.padStart(6, '0');
+
+    const countyName = countyMatch[1].toLowerCase();
+    const countyCodeMap = {
+        ingham: '065',
+        eaton: '045',
+        clinton: '037'
+    };
+
+    const county = countyCodeMap[countyName];
+    if (!county) return null;
+
+    return `26${county}${tract}${bg}`;
+}
+
+//data button logic
+function updateShowDataButton() {
+    const btn = document.getElementById('show-data-btn');
+    btn.disabled = !(
+        selectionMode === SelectionMode.LOCKED &&
+        getActiveFilter() &&
+        selectedIds.size
+    );
+}
+
+    map.setFilter('active-bg-highlight', [
+        'in',
+        ['get', 'JOINKEY12'],
+        ['literal', ids]
+    ]);
+
+    document.getElementById('details').textContent =
+        `${name}: ${ids.length} block group(s) highlighted.`;
+}
+function updateNeighborhoodHighlight() {
+    const name = hoveredNeighborhoodName || pinnedNeighborhoodName || null;
+    highlightNeighborhood(name);
+}
+function selectNeighborhoodsFromBg(bgId) {
+    const id = String(bgId);
+    const neighborhoods = bgToNeighborhoods.get(id) || [];
 
 function syncNeighborhoodBaseFill() {
     const neighborhoodIds = [...new Set(
@@ -882,9 +1641,18 @@ function toggleSelection(id) {
     if (selectedIds.has(key)) selectedIds.delete(key);
     else selectedIds.add(key);
     syncSelectedFill();
+
+    if (!wasSelected) {
+        pinnedNeighborhoodName = neighborhoods[0] || null;
+    } else if (pinnedNeighborhoodName && !selectedNeighborhoods.has(pinnedNeighborhoodName)) {
+        pinnedNeighborhoodName = [...selectedNeighborhoods][0] || null;
+    }
+
+    hoveredNeighborhoodName = null;
+    updateNeighborhoodHighlight();
+
     renderSelectedList();
     updateShowDataButton();
-}
 
 function highlightActive(id) {
     activeId = id;
@@ -1416,6 +2184,8 @@ function updateTableAndMapHighlight() {
         rows.forEach(tr => tr.classList.remove('row-active'));
     }
 }
+function updateTableAndMapHighlight() {
+    const id = pinnedTableId || hoveredTableId || null;
 
 function updateNeighborhoodTableAndMapHighlight() {
     const name = pinnedNeighborhoodName || hoveredNeighborhoodName || null;
@@ -1448,7 +2218,23 @@ function getNeighborhoodPopulation(neighborhoodName) {
 
     return total;
 }
+function getNeighborhoodPopulation(neighborhoodName) {
+    const ids = neighborhoodToBgs[neighborhoodName] || [];
 
+    let total = 0;
+
+    ids.forEach(id => {
+        const row = idToRow.get(String(id)) || {};
+        const raw = row['B01003_001E'];
+        const num = Number(raw);
+
+        if (Number.isFinite(num)) {
+            total += num;
+        }
+    });
+
+    return total;
+}
 function setCommunityGardensVisible(flag) {
     const v = flag ? 'visible' : 'none';
 
@@ -1461,9 +2247,13 @@ function setCommunityGardensVisible(flag) {
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
+
     rows.forEach(tr => {
-        if (tr.getAttribute('data-id') === String(id)) tr.style.background = '#fde68a';
-        else tr.style.background = '';
+        if (tr.getAttribute('data-id') === String(id)) {
+            tr.style.background = '#fde68a';
+        } else {
+            tr.style.background = '';
+        }
     });
 }
 
@@ -1687,6 +2477,63 @@ map.on('load', async () => {
             },
             layout: { visibility: 'none' }
         });
+        map.addLayer({
+        id: 'neighborhood-base-fill',
+        type: 'fill',
+        source: 'arcgis-layer',
+        paint: {
+            'fill-color': '#ffffff',
+            'fill-opacity': 0.65
+        },
+        filter: ['in', ['get', 'JOINKEY12'], ['literal', []]]
+        });
+
+        map.addLayer({
+            id: 'block-selected',
+            type: 'fill',
+            source: 'blocks',
+            paint: {
+                'fill-color': '#f97316',
+                'fill-opacity': 0.5
+            },
+            layout: { visibility: 'none' },
+            filter: ['in', ['get', 'GEOID20'], ['literal', []]]
+        });
+
+        map.addLayer({
+            id: 'block-selected-outline',
+            type: 'line',
+            source: 'blocks',
+            paint: {
+                'line-color': '#c2410c',
+                'line-width': 0.5
+            },
+            layout: { visibility: 'none' },
+            filter: ['in', ['get', 'GEOID20'], ['literal', []]]
+        });
+        
+
+        map.addLayer({
+            id: 'block-fill',
+            type: 'fill',
+            source: 'blocks',
+            paint: {
+                'fill-color': '#2b8a3e',
+                'fill-opacity': 0.25
+            },
+            layout: { visibility: 'none' }
+        });
+
+        map.addLayer({
+            id: 'block-outline',
+            type: 'line',
+            source: 'blocks',
+            paint: {
+                'line-color': '#c2410c',
+                'line-width': 0.5
+            },
+            layout: { visibility: 'none' }
+        });
 
         map.addLayer({
             id: 'block-selected',
@@ -1712,6 +2559,7 @@ map.on('load', async () => {
             filter: ['in', ['get', 'GEOID20'], ['literal', []]]
         });
 
+
         map.addLayer({
             id: 'community-gardens-fill',
             type: 'fill',
@@ -1727,6 +2575,25 @@ map.on('load', async () => {
             paint: {'line-color': '#45ac3b','line-width': 1},
             layout: {visibility: 'none'}
         })
+        map.addLayer({
+            id: 'radius-circle-fill',
+            type: 'fill',
+            source: 'radius-circle',
+            paint: {
+                'fill-color': '#60a5fa',
+                'fill-opacity': 0.15
+            }
+        });
+        
+        map.addLayer({
+            id: 'radius-circle-outline',
+            type: 'line',
+            source: 'radius-circle',
+            paint: {
+                'line-color': '#2563eb',
+                'line-width': 2
+            }
+        });
 
         map.addLayer({
             id: 'radius-circle-fill',
@@ -1783,6 +2650,62 @@ map.on('load', async () => {
                 updateShowDataButton();
             }
         });
+        map.on('click', e => {
+            if (selectionMode === SelectionMode.LOCKED || selectionMode === SelectionMode.BLOCK_SELECT) return;
+            if (getDisplayMode() !== 'radius') return;
+        
+            const radiusInput = document.getElementById('radius-input');
+            const radiusMiles = Number(radiusInput?.value || 1);
+        
+            if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) {
+                alert('Please enter a valid radius greater than 0.');
+                return;
+            }
+        
+            selectBlockGroupsByRadius(e.lngLat, radiusMiles);
+        });
+
+        //block on-click
+        map.on('click', 'block-fill', e => {
+            if (selectionMode !== SelectionMode.BLOCK_SELECT) return
+            if (!e.features?.length) return
+            const id = String(e.features[0].properties.GEOID20)
+            if (selectedBlockIds.has(id)) selectedBlockIds.delete(id)
+            else selectedBlockIds.add(id)
+            syncBlockSelectedFill()
+        });
+
+        //block hover to show formatted id
+        function formatBlockId(geoid20) {
+            const d = String(geoid20 ?? '').replace(/\D/g, '')
+            if (d.length !== 15) return geoid20
+            const tractRaw = d.slice(5, 11); 
+            return `County ${parseInt(d.slice(2, 5), 10)} · Tract ${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)} · Block Group ${d.slice(11, 12)} · Block ${parseInt(d.slice(12), 10)}`
+        }
+
+        map.on('mousemove', 'block-selected', e => {
+            if (selectionMode !== SelectionMode.LOCKED) return
+            if (!e.features?.length) return
+
+            const p = e.features[0].properties ?? {}
+            const label = formatBlockId(p.GEOID20)
+
+            map.getCanvas().style.cursor = 'pointer'
+            blockHoverPopup
+            .setLngLat(e.lngLat)
+            .setHTML(
+            `<div style="font:12px/1.3 sans-serif">
+                <div><strong>Block ID</strong></div>
+                <div>${label}</div>
+            </div>`
+            )
+            .addTo(map)
+        });
+
+        map.on('mouseleave', 'block-selected', () => {
+            map.getCanvas().style.cursor = ''
+            blockHoverPopup.remove()
+        })
 
         map.on('click', e => {
             if (selectionMode === SelectionMode.LOCKED) return;
