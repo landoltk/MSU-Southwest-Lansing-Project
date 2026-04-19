@@ -101,6 +101,24 @@ function attachJoinKeyToBlocks(blockGeojson) {
     }
 }
 
+function featureCentroidInsideCircle(feature, circle) {
+    try {
+        const centroid = turf.centroid(feature);
+        return turf.booleanPointInPolygon(centroid, circle);
+    } catch (err) {
+        console.warn('Centroid check failed:', err);
+        return false;
+    }
+}
+
+function clearNeighborhoodState() {
+    selectedNeighborhoods.clear();
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+    selectionModeBG = 'block';
+    clearNeighborhoodBaseFill();
+}
+
 async function loadBlocksForSelectedBgs() {
     const where = [...selectedIds]
         .map(k => `GEOID20 LIKE '${k}%'`)
@@ -317,6 +335,7 @@ function syncNeighborhoodBaseFill() {
 }
 
 function clearNeighborhoodBaseFill() {
+    if (!map.getLayer('neighborhood-base-fill')) return;
     map.setFilter('neighborhood-base-fill', [
         'in',
         ['get', 'JOINKEY12'],
@@ -447,6 +466,8 @@ function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
     if (!blockGroupGeojson || !map.getSource('radius-circle')) return;
     if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
 
+    clearNeighborhoodState();
+
     const circle = turf.circle([centerLngLat.lng, centerLngLat.lat], radiusMiles, {
         steps: 64,
         units: 'miles'
@@ -461,12 +482,8 @@ function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
         const id = String(feature.properties?.JOINKEY12 ?? feature.id ?? '');
         if (!id) continue;
 
-        try {
-            if (turf.booleanIntersects(feature, circle)) {
-                selectedIds.add(id);
-            }
-        } catch (err) {
-            console.warn('Intersection check failed for feature:', id, err);
+        if (featureCentroidInsideCircle(feature, circle)) {
+            selectedIds.add(id);
         }
     }
 
@@ -490,6 +507,8 @@ function selectBlocksByRadius(centerLngLat, radiusMiles) {
     if (!blockSource || !map.getSource('radius-circle')) return;
     if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
 
+    clearNeighborhoodState();
+
     const circle = turf.circle([centerLngLat.lng, centerLngLat.lat], radiusMiles, {
         steps: 64,
         units: 'miles'
@@ -504,12 +523,8 @@ function selectBlocksByRadius(centerLngLat, radiusMiles) {
         const blockId = String(feature.properties?.GEOID20 ?? '');
         if (!blockId) continue;
 
-        try {
-            if (turf.booleanIntersects(feature, circle)) {
-                selectedBlockIds.add(blockId);
-            }
-        } catch (err) {
-            console.warn('Block radius intersection failed for block:', blockId, err);
+        if (featureCentroidInsideCircle(feature, circle)) {
+            selectedBlockIds.add(blockId);
         }
     }
 
@@ -640,13 +655,11 @@ function selectAllNeighborhoods() {
 }
 
 function exitNeighborhoodMode() {
-    selectionModeBG = 'block';
+    clearNeighborhoodState();
 
     selectedIds.clear();
-    selectedNeighborhoods.clear();
     activeId = null;
 
-    clearNeighborhoodBaseFill();
     syncSelectedFill();
     renderSelectedList();
     updateShowDataButton();
@@ -1017,6 +1030,10 @@ function updateDisplayMethodUI() {
         neighborhoodControls.style.display = mode === 'neighborhoods' ? 'block' : 'none';
     }
 
+    if (mode === 'radius') {
+        clearNeighborhoodBaseFill();
+    }
+
     if (details) {
         if (mode === 'radius') {
             if (selectionMode === SelectionMode.BLOCK_SELECT) {
@@ -1205,12 +1222,13 @@ map.on('load', async () => {
 
         map.on('click', 'block-fill', e => {
             if (selectionMode !== SelectionMode.BLOCK_SELECT) return;
+            if (getDisplayMode() === 'radius') return;
             if (!e.features?.length) return;
-
+        
             const id = String(e.features[0].properties.GEOID20);
             if (selectedBlockIds.has(id)) selectedBlockIds.delete(id);
             else selectedBlockIds.add(id);
-
+        
             syncBlockSelectedFill();
             recomputeSelectedIdsFromBlocks();
         });
@@ -1265,10 +1283,9 @@ document.getElementById('clear-selection').addEventListener('click', () => {
     } else {
         if (selectionModeBG === 'neighborhood') {
             selectedIds.clear();
-            selectedNeighborhoods.clear();
+            clearNeighborhoodState();
             activeId = null;
 
-            syncNeighborhoodBaseFill();
             syncSelectedFill();
             renderSelectedList();
             updateShowDataButton();
@@ -1342,6 +1359,7 @@ filterIds.forEach(id => {
 document.getElementById('reset-last-selection').addEventListener('click', () => {
     if (!lastSubmittedIds.length) return;
 
+    clearNeighborhoodState();
     selectedIds.clear();
     lastSubmittedIds.forEach(id => selectedIds.add(String(id)));
 
@@ -1349,29 +1367,13 @@ document.getElementById('reset-last-selection').addEventListener('click', () => 
     pinnedTableId = null;
     hoveredTableId = null;
 
-    if (selectionModeBG === 'neighborhood') {
-        selectedNeighborhoods.clear();
-
-        lastSubmittedIds.forEach(id => {
-            const neighborhoods = bgToNeighborhoods.get(String(id)) || [];
-            neighborhoods.forEach(name => selectedNeighborhoods.add(name));
-        });
-
-        syncNeighborhoodBaseFill();
-    }
-
     syncSelectedFill();
     renderSelectedList();
     updateShowDataButton();
 
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     document.getElementById('data-box').style.display = 'none';
-
-    if (selectionModeBG === 'neighborhood') {
-        document.getElementById('details').textContent = 'Neighborhood selection restored.';
-    } else {
-        document.getElementById('details').textContent = 'Click a polygon to view details.';
-    }
+    document.getElementById('details').textContent = 'Click a polygon to view details.';
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
@@ -1449,8 +1451,8 @@ displayCheckboxes.forEach(cb => {
                 if (other !== cb) other.checked = false;
             });
 
-            if (cb.id !== 'neighborhoods-display' && selectionModeBG === 'neighborhood') {
-                exitNeighborhoodMode();
+            if (cb.id !== 'neighborhoods-display') {
+                clearNeighborhoodState();
             }
 
             if (cb.id !== 'radius-display') {
@@ -1467,7 +1469,11 @@ const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
 
 if (radiusCheckbox) {
     radiusCheckbox.addEventListener('change', () => {
-        if (!radiusCheckbox.checked) {
+        if (radiusCheckbox.checked) {
+            clearNeighborhoodState();
+            renderSelectedList();
+            syncSelectedFill();
+        } else {
             clearRadiusCircle();
         }
         updateDisplayMethodUI();
