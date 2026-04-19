@@ -1006,12 +1006,14 @@ function buildRaceBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
 
+    // BLOCK MODE: estimate race counts based on selected block population share
     if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
         const src = map.getSource('blocks')?._data;
         if (!src) return;
 
-        const selectedBgIds = new Set();
+        const byBg = {};
 
+        // sum selected block population within each block group
         for (const f of src.features ?? []) {
             const p = f.properties ?? {};
             const blockId = String(p.GEOID20);
@@ -1020,27 +1022,41 @@ function buildRaceBox() {
             if (!selectedBlockIds.has(blockId)) continue;
             if (!bgId) continue;
 
-            selectedBgIds.add(bgId);
+            const pop = Number(p.POP20) || 0;
+
+            if (!byBg[bgId]) {
+                byBg[bgId] = {
+                    selectedPop: 0
+                };
+            }
+
+            byBg[bgId].selectedPop += pop;
         }
 
-        const rows = [...selectedBgIds].map(id => {
+        const rows = Object.keys(byBg).map(id => {
             const feature = (blockGroupGeojson.features || []).find(
                 f => String(f.properties?.JOINKEY12) === String(id)
             );
 
             const p = feature?.properties || {};
+            const totalBgPop = Number(p.csv_B01003_001E) || 0;
+            const selectedPop = byBg[id].selectedPop;
+            const proportion = totalBgPop > 0 ? selectedPop / totalBgPop : 0;
 
             return {
                 id,
                 name: id,
-                total: Number(p.race_total) || 0,
-                white: Number(p.race_white) || 0,
-                black: Number(p.race_black) || 0,
-                asian: Number(p.race_asian) || 0,
-                other:
-                    (Number(p.race_native) || 0) +
-                    (Number(p.race_other) || 0) +
-                    (Number(p.race_two_plus) || 0)
+                totalPop: totalBgPop,
+                selectedPop,
+                proportion,
+                total: Math.round((Number(p.race_total) || 0) * proportion),
+                white: Math.round((Number(p.race_white) || 0) * proportion),
+                black: Math.round((Number(p.race_black) || 0) * proportion),
+                native: Math.round((Number(p.race_native) || 0) * proportion),
+                asian: Math.round((Number(p.race_asian) || 0) * proportion),
+                pacific: Math.round((Number(p.race_pacific) || 0) * proportion),
+                other: Math.round((Number(p.race_other) || 0) * proportion),
+                twoPlus: Math.round((Number(p.race_two_plus) || 0) * proportion)
             };
         });
 
@@ -1049,34 +1065,43 @@ function buildRaceBox() {
                 acc.total += r.total;
                 acc.white += r.white;
                 acc.black += r.black;
+                acc.native += r.native;
                 acc.asian += r.asian;
+                acc.pacific += r.pacific;
                 acc.other += r.other;
+                acc.twoPlus += r.twoPlus;
                 return acc;
             },
             {
                 total: 0,
                 white: 0,
                 black: 0,
+                native: 0,
                 asian: 0,
-                other: 0
+                pacific: 0,
+                other: 0,
+                twoPlus: 0
             }
         );
 
         content.innerHTML = `
             <div style="margin-bottom:10px; font-size:13px; color:#555;">
-                Race data acquired from 2020 Census
+                Race estimates based on selected block population share within each block group
             </div>
 
             <div style="overflow-x:auto;">
-                <table style="border-collapse:collapse;width:100%; min-width:800px;">
+                <table style="border-collapse:collapse;width:100%; min-width:1400px;">
                     <thead>
                         <tr>
                             <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
                             <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
                             <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
                             <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Native</th>
                             <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
-                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Pacific</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other Race</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Two+</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1085,8 +1110,11 @@ function buildRaceBox() {
                             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.total.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.white.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.black.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.native.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.asian.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.pacific.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.other.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.twoPlus.toLocaleString()}</td>
                         </tr>
 
                         ${rows.map(r => `
@@ -1095,8 +1123,11 @@ function buildRaceBox() {
                                 <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
                                 <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
                                 <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.native.toLocaleString()}</td>
                                 <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.asian.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.pacific.toLocaleString()}</td>
                                 <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.other.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.twoPlus.toLocaleString()}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1112,6 +1143,7 @@ function buildRaceBox() {
         return;
     }
 
+    // NORMAL MODE: use full block group race values
     if (!selectedIds.size) {
         box.style.display = 'none';
         return;
@@ -1131,11 +1163,11 @@ function buildRaceBox() {
             total: Number(p.race_total) || 0,
             white: Number(p.race_white) || 0,
             black: Number(p.race_black) || 0,
+            native: Number(p.race_native) || 0,
             asian: Number(p.race_asian) || 0,
-            other:
-                (Number(p.race_native) || 0) +
-                (Number(p.race_other) || 0) +
-                (Number(p.race_two_plus) || 0)
+            pacific: Number(p.race_pacific) || 0,
+            other: Number(p.race_other) || 0,
+            twoPlus: Number(p.race_two_plus) || 0
         };
     });
 
@@ -1144,16 +1176,22 @@ function buildRaceBox() {
             acc.total += r.total;
             acc.white += r.white;
             acc.black += r.black;
+            acc.native += r.native;
             acc.asian += r.asian;
+            acc.pacific += r.pacific;
             acc.other += r.other;
+            acc.twoPlus += r.twoPlus;
             return acc;
         },
         {
             total: 0,
             white: 0,
             black: 0,
+            native: 0,
             asian: 0,
-            other: 0
+            pacific: 0,
+            other: 0,
+            twoPlus: 0
         }
     );
 
@@ -1163,15 +1201,18 @@ function buildRaceBox() {
         </div>
 
         <div style="overflow-x:auto;">
-            <table style="border-collapse:collapse;width:100%; min-width:800px;">
+            <table style="border-collapse:collapse;width:100%; min-width:1400px;">
                 <thead>
                     <tr>
                         <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
                         <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
                         <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
                         <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Native</th>
                         <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
-                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Pacific</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other Race</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Two+</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1180,8 +1221,11 @@ function buildRaceBox() {
                         <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.total.toLocaleString()}</td>
                         <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.white.toLocaleString()}</td>
                         <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.black.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.native.toLocaleString()}</td>
                         <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.asian.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.pacific.toLocaleString()}</td>
                         <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.other.toLocaleString()}</td>
+                        <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.twoPlus.toLocaleString()}</td>
                     </tr>
 
                     ${rows.map(r => `
@@ -1190,8 +1234,11 @@ function buildRaceBox() {
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.native.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.asian.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.pacific.toLocaleString()}</td>
                             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.other.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.twoPlus.toLocaleString()}</td>
                         </tr>
                     `).join('')}
                 </tbody>
