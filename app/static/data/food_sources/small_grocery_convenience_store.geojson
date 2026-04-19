@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"name": "Small Grocery and Convenience Store",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Quality Dairy Store" }, "geometry": { "type": "Point", "coordinates": [ -84.5827675, 42.6694724, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Quality Dairy Store" }, "geometry": { "type": "Point", "coordinates": [ -84.6035448, 42.6827485, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Quality Dairy Store" }, "geometry": { "type": "Point", "coordinates": [ -84.5719789, 42.7123755, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Citgo" }, "geometry": { "type": "Point", "coordinates": [ -84.5668269, 42.6916625, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Sunoco - Stop & Shop" }, "geometry": { "type": "Point", "coordinates": [ -84.5681708, 42.6842582, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Sunoco Fuel Mart" }, "geometry": { "type": "Point", "coordinates": [ -84.6025155, 42.6834327, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Admiral" }, "geometry": { "type": "Point", "coordinates": [ -84.6033881, 42.697217, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Amoco" }, "geometry": { "type": "Point", "coordinates": [ -84.5728003, 42.7116658, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Sunoco" }, "geometry": { "type": "Point", "coordinates": [ -84.5677324, 42.6951793, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Kroger Fuel Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5655174, 42.6971683, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "bp" }, "geometry": { "type": "Point", "coordinates": [ -84.5773505, 42.6736678, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "South Washington Liquor Store" }, "geometry": { "type": "Point", "coordinates": [ -84.5626174, 42.669558, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Mario's Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5845422, 42.6689729, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Von's Market" }, "geometry": { "type": "Point", "coordinates": [ -84.58303, 42.6965478, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Short Stop Liquor" }, "geometry": { "type": "Point", "coordinates": [ -84.5780096, 42.712195, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Waverley party store" }, "geometry": { "type": "Point", "coordinates": [ -84.603573, 42.6983346, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Royal Liquor" }, "geometry": { "type": "Point", "coordinates": [ -84.5667564, 42.6978816, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Mercado juguito" }, "geometry": { "type": "Point", "coordinates": [ -84.5713998, 42.6978567, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "BoBo Asian Grocery Store" }, "geometry": { "type": "Point", "coordinates": [ -84.601413, 42.682759, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "St Ides Village Food Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5816145, 42.6834366, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dong An Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5681069, 42.6896475, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "La Frontera South" }, "geometry": { "type": "Point", "coordinates": [ -84.5779957, 42.6738593, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Save More Meat & Dairy Market" }, "geometry": { "type": "Point", "coordinates": [ -84.6037339, 42.6838161, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "1910 Food Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5825035, 42.6972749, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Fish Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5640465, 42.6622858, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Rich's Country Store" }, "geometry": { "type": "Point", "coordinates": [ -84.5917598, 42.6614093, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Speedway" }, "geometry": { "type": "Point", "coordinates": [ -84.5920201, 42.6625793, 0.0 ] } }
+]
+}

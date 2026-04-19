@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"name": "Food Pantry and Food Distribution",
+"features": [
+{ "type": "Feature", "properties": { "Name": "LMTS Community Outreach Services", "description": "GLFB Food Pantry and Produce Distribution" }, "geometry": { "type": "Point", "coordinates": [ -84.5686492, 42.6980241, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Our Savior Lutheran Food Bank", "description": "GLFB Pantry and Produce Distribution" }, "geometry": { "type": "Point", "coordinates": [ -84.5727329, 42.6966335, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "South Lansing Ministries", "description": "GLFB Pantry" }, "geometry": { "type": "Point", "coordinates": [ -84.5779391, 42.7113685, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Church-God In Christ", "description": "GLFB Pantry" }, "geometry": { "type": "Point", "coordinates": [ -84.5930882, 42.6801604, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Christ Temple Church of Lansing", "description": "Food Pantry (not GLFB)" }, "geometry": { "type": "Point", "coordinates": [ -84.5667014, 42.7109842, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Tabernacle of David", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.5865877, 42.6964107, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "City Church", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.5932709, 42.6632666, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "New Mt Calvary Baptist Church", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.601901, 42.6698856, 0.0 ] } }
+]
+}

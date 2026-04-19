@@ -1,0 +1,21 @@
+{
+"type": "FeatureCollection",
+"name": "Schools Churches and Community Centers",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Holly Park Academy" }, "geometry": { "type": "Point", "coordinates": [ -84.5750602, 42.6991087, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Averill Elementary" }, "geometry": { "type": "Point", "coordinates": [ -84.598605, 42.7000451, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lewton Global Studies/Spanish Immersion Magnet Elementary School" }, "geometry": { "type": "Point", "coordinates": [ -84.5907651, 42.711432, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dwight Rich School of the Arts" }, "geometry": { "type": "Point", "coordinates": [ -84.5854034, 42.706398, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Cole Academy" }, "geometry": { "type": "Point", "coordinates": [ -84.5787658, 42.7115597, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Ingham Academy" }, "geometry": { "type": "Point", "coordinates": [ -84.5734558, 42.6963844, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Attwood New Tech Magnet School" }, "geometry": { "type": "Point", "coordinates": [ -84.5650449, 42.6749819, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Boys & Girls Club of Lansing" }, "geometry": { "type": "Point", "coordinates": [ -84.5807933, 42.6899866, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Wexford Montessori Academy" }, "geometry": { "type": "Point", "coordinates": [ -84.5967996, 42.6811006, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Technical High School" }, "geometry": { "type": "Point", "coordinates": [ -84.5912011, 42.673674, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Harley Franks Head Start" }, "geometry": { "type": "Point", "coordinates": [ -84.5915337, 42.6717507, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Helping Hands Christian Learning Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5887535, 42.6970281, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Little Dreamers Early Learning Center" }, "geometry": { "type": "Point", "coordinates": [ -84.604345, 42.6952889, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Grandhaven Manor Communities" }, "geometry": { "type": "Point", "coordinates": [ -84.5938141, 42.7103564, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "LMTS Community Outreach Services" }, "geometry": { "type": "Point", "coordinates": [ -84.5686492, 42.6980241, 0.0 ] } }
+]
+}

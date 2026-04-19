@@ -1,0 +1,15 @@
+{
+"type": "FeatureCollection",
+"name": "Pharmacy and Dollar Store",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Dollar General" }, "geometry": { "type": "Point", "coordinates": [ -84.5665645, 42.7006382, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Atlas Meds Pharmacy" }, "geometry": { "type": "Point", "coordinates": [ -84.567242, 42.6857297, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dollar Tree" }, "geometry": { "type": "Point", "coordinates": [ -84.5714547, 42.6982225, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Family Dollar" }, "geometry": { "type": "Point", "coordinates": [ -84.5646583, 42.697138, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dollar Tree" }, "geometry": { "type": "Point", "coordinates": [ -84.6023845, 42.6826926, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Family Dollar" }, "geometry": { "type": "Point", "coordinates": [ -84.6039167, 42.6834648, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dollar General" }, "geometry": { "type": "Point", "coordinates": [ -84.6039694, 42.6963833, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Family Dollar" }, "geometry": { "type": "Point", "coordinates": [ -84.574607, 42.7114077, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Dollar General" }, "geometry": { "type": "Point", "coordinates": [ -84.5756423, 42.6758462, 0.0 ] } }
+]
+}

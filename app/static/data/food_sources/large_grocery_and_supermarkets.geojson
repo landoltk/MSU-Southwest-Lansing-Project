@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "Large Grocery and Supermarket",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Great Giant Market" }, "geometry": { "type": "Point", "coordinates": [ -84.5713043, 42.6979255, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Kroger" }, "geometry": { "type": "Point", "coordinates": [ -84.5652469, 42.6949511, 0.0 ] } }
+]
+}

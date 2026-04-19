@@ -1,0 +1,20 @@
+{
+"type": "FeatureCollection",
+"name": "Gardens and Farmers Markets",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Webster Farm Community Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5797024, 42.677238, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Hill Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5890794, 42.6744248, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Averill Elementary", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5989262, 42.7002727, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Risdale Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5854797, 42.687952, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Summer Place Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.6018448, 42.6856159, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Endeavor House Community Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.6043417, 42.6933966, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "South Side Community Coalition", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.5803732, 42.6971849, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Ingham County Family Center Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5726537, 42.6953316, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Tithe Missionary Baptist Church Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5722568, 42.6970776, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "South Washington Apartments Community Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5627911, 42.7009954, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Garden of Grace", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5776552, 42.7113982, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "St. Casmir/Moores Park Community Garden", "description": "GLFB Community Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.5627655, 42.7146301, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "South Lansing Farmers Market", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.568954, 42.683865, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Private Apartment Garden", "description": null }, "geometry": { "type": "Point", "coordinates": [ -84.5720594, 42.6670132, 0.0 ] } }
+]
+}

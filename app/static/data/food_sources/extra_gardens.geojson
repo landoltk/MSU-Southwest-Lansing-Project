@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "Extra Gardens",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Pinebrook Manor" }, "geometry": { "type": "Point", "coordinates": [ -84.5995073, 42.6709538, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Galilee Baptist Church" }, "geometry": { "type": "Point", "coordinates": [ -84.5869793, 42.6857706, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Somerset Apartment Garden" }, "geometry": { "type": "Point", "coordinates": [ -84.570881, 42.6959063, 0.0 ] } }
+]
+}

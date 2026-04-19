@@ -1274,6 +1274,13 @@ function buildNeighborhoodPopulationBox() {
     updateTableAndMapHighlight();
 }
 
+function buildFoodBox(){
+    const box = document.getElementById('data-box')
+    const content = document.getElementById('data-box-content')
+    content.innerHTML = `<p>Credit to Grace Densham, Landscape Architecture Department for the Community Gardens and Food Sources data.</p>`
+    box.style.display = 'block'
+}
+
 function buildPlaceholderBox(label){
     const box = document.getElementById('data-box')
     const content = document.getElementById('data-box-content')
@@ -2063,7 +2070,7 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
     else if (f === 'housesize-filter') buildHouseholdBox();
     else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
-        buildPlaceholderBox(filterLabels[f]);
+        buildFoodBox();
     } else {
         buildPlaceholderBox(filterLabels[f]);
     }
