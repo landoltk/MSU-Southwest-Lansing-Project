@@ -123,6 +123,47 @@ async function loadFoodGeojson({ id, path, color }) {
     });
 }
 
+//health points
+const healthSources = {
+    sources: {},
+    colors: {}
+}
+
+async function loadHealthGeojson({ id, path, color }) {
+    const data = await fetch(path).then(r => r.json());
+
+    const category =
+        typeof data.name === 'string' && data.name.trim()
+        ? data.name.trim()
+        : 'Health Resource';
+
+    for (const f of data.features ?? []) {
+        if (!f.properties) f.properties = {};
+        f.properties._category = category;
+    }
+
+    healthSources.sources[id] = data;
+    healthSources.colors[id] = color;
+
+    map.addSource(id, {
+        type: 'geojson',
+        data
+    });
+
+    map.addLayer({
+        id: `${id}-points`,
+        type: 'circle',
+        source: id,
+        paint: {
+        'circle-radius': 4,
+        'circle-color': color,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5
+        },
+        layout: { visibility: 'none' }
+    });
+}
+
 function buildBgToNeighborhoods() {
     Object.entries(neighborhoodToBgs).forEach(([neighborhood, ids]) => {
         ids.forEach(id => {
@@ -1333,8 +1374,75 @@ function buildNeighborhoodPopulationBox() {
 function buildFoodBox(){
     const box = document.getElementById('data-box')
     const content = document.getElementById('data-box-content')
-    content.innerHTML = `<p>Credit to Grace Densham, Landscape Architecture Department for the Community Gardens and Food Sources data.</p>`
+    content.innerHTML = 
+    `<div style="margin-top:12px">
+        <div style="font-weight:600; margin-bottom:6px">Food Sources</div>
+        <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 10px; font-size:13px">
+
+            <span style="width:12px; height:12px; background:#383fc5; border-radius:50%"></span>
+            <span>Food Pantries</span>
+
+            <span style="width:12px; height:12px; background:#1d7918; border-radius:50%"></span>
+            <span>Community / Extra Gardens</span>
+
+            <span style="width:12px; height:12px; background:#90de4c; border-radius:50%"></span>
+            <span>Farmers Markets & Gardens</span>
+
+            <span style="width:12px; height:12px; background:#b939c8; border-radius:50%"></span>
+            <span>Large Grocery Stores & Supermarkets</span>
+
+            <span style="width:12px; height:12px; background:#e92b2b; border-radius:50%"></span>
+            <span>Pharmacies & Dollar Stores</span>
+
+            <span style="width:12px; height:12px; background:#ec840d; border-radius:50%"></span>
+            <span>Restaurants</span>
+
+            <span style="width:12px; height:12px; background:#5d9ee7; border-radius:50%"></span>
+            <span>Schools, Churches & Community Centers</span>
+
+            <span style="width:12px; height:12px; background:#e5e239; border-radius:50%"></span>
+            <span>Small Grocery & Convenience Stores</span>
+        </div>
+    </div>
+    <p>Credit to Grace Densham, Landscape Architecture Department for the Community Gardens and Food Sources data.</p>`
     box.style.display = 'block'
+}
+
+function buildHealthBox() {
+    const box = document.getElementById('data-box');
+    const content = document.getElementById('data-box-content');
+
+    content.innerHTML = `
+        <div style="margin-top:12px">
+        <div style="font-weight:600; margin-bottom:6px">
+            Health & Community Resources
+        </div>
+
+        <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 10px; font-size:13px">
+            <span style="width:12px; height:12px; background:#9eee3c; border-radius:50%"></span>
+            <span>Libraries</span>
+
+            <span style="width:12px; height:12px; background:#166534; border-radius:50%"></span>
+            <span>Parks</span>
+
+            <span style="width:12px; height:12px; background:#1756b3; border-radius:50%"></span>
+            <span>Recreational Centers</span>
+
+            <span style="width:12px; height:12px; background:#d8991d; border-radius:50%"></span>
+            <span>Soup Kitchens</span>
+
+            <span style="width:12px; height:12px; background:#e00303; border-radius:50%"></span>
+            <span>Hospitals & Clinics</span>
+        </div>
+        </div>
+
+        <p style="margin-top:10px; font-size:13px; color:#555">
+        Health-related points are displayed in the region based on criteria
+        from the Healthy City Assessment project by Frank Luginbill,
+        Noah Mueller, Jun Han, and Amman Thasin.
+        </p>
+    `;
+    box.style.display = 'block';
 }
 
 function buildPlaceholderBox(label){
@@ -1532,6 +1640,22 @@ function setFoodSourcesVisible(flag) {
     }
 }
 
+function setHealthSourcesVisible(flag) {
+    Object.keys(healthSources.sources).forEach(id => {
+        if (!map.getLayer(`${id}-points`)) return;
+
+        map.setLayoutProperty(
+        `${id}-points`,
+        'visibility',
+        flag ? 'visible' : 'none'
+        );
+    });
+
+    if (flag) {
+        filterHealthPointsToSelectedBlocks();
+    }
+}
+
 //hyperlink highlight for data
 function highlightDataRow(id) {
     const rows = document.querySelectorAll('#data-box tbody tr');
@@ -1625,6 +1749,7 @@ async function setSelectionMode(mode) {
     if (mode === SelectionMode.BLOCK_SELECT) {
         setCommunityGardensVisible(false);
         setFoodSourcesVisible(false);
+        setHealthSourcesVisible(false);
         //checks if blocks have been loaded before to prevent wipe when going from locked back to block select
         if (selectedBlockIds.size === 0) {
             const blocks = await loadBlocksForSelectedBgs()
@@ -1651,6 +1776,7 @@ async function setSelectionMode(mode) {
     if (mode === SelectionMode.LOCKED) {
         setCommunityGardensVisible(false);
         setFoodSourcesVisible(false);
+        setHealthSourcesVisible(false);
         map.setLayoutProperty('block-fill', 'visibility', 'none')
         map.setLayoutProperty('block-outline', 'visibility', 'none')
         map.setLayoutProperty('block-selected', 'visibility', 'visible')
@@ -1750,7 +1876,43 @@ function filterCommunityGardensToSelectedBlocks() {
     'blocks:',
     getSelectedBlockPolygons().length
     );
+}
 
+function filterHealthPointsToSelectedBlocks() {
+    const blockPolys = getSelectedBlockPolygons();
+
+    for (const [id, original] of Object.entries(healthSources.sources)) {
+        const src = map.getSource(id);
+        if (!src) continue;
+
+        if (!blockPolys.length) {
+        src.setData({
+            type: 'FeatureCollection',
+            name: original.name,
+            features: []
+        });
+        continue;
+        }
+
+        const filtered = [];
+
+        for (const pt of original.features ?? []) {
+        for (const poly of blockPolys) {
+            try {
+            if (turf.booleanPointInPolygon(pt, poly)) {
+                filtered.push(pt);
+                break;
+            }
+            } catch (_) {}
+        }
+        }
+
+        src.setData({
+        type: 'FeatureCollection',
+        name: original.name,
+        features: filtered
+        });
+    }
 }
 
 map.on('load', async () => {
@@ -1964,6 +2126,37 @@ map.on('load', async () => {
             color: '#e5e239'
         });
 
+        //health sources
+        await loadHealthGeojson({
+            id: 'libraries',
+            path: 'static/data/health_points/Libraries.geojson',
+            color: '#9eee3c'
+        })
+
+        await loadHealthGeojson({
+            id: 'parks',
+            path: 'static/data/health_points/Parks.geojson',
+            color: '#166534'
+        })
+
+        await loadHealthGeojson({
+            id: 'rec-centers',
+            path: 'static/data/health_points/Recreational Centers.geojson',
+            color: '#1756b3'
+        })
+
+        await loadHealthGeojson({
+            id: 'soup-kitchens',
+            path: 'static/data/health_points/Soup Kitchens.geojson',
+            color: '#d8991d'
+        })
+
+        await loadHealthGeojson({
+            id: 'hospitals',
+            path: 'static/data/health_points/Hospitals and Clinics.geojson',
+            color: '#e00303'
+        })
+
         //on hover LINK display for troubleshooting
         /*
         let hoverPopup = new maplibregl.Popup({ closeButton:false, closeOnClick:false });
@@ -2165,6 +2358,40 @@ map.on('load', async () => {
                 map.getCanvas().style.cursor = '';
             });
         })
+
+        //health points on-click
+        Object.keys(healthSources.sources).forEach(id => {
+            map.on('click', `${id}-points`, e => {
+                if (selectionMode !== SelectionMode.LOCKED) return;
+                if (getActiveFilter() !== 'health-filter') return;
+                if (!e.features?.length) return;
+
+                const p = e.features[0].properties ?? {};
+
+                const name =
+                typeof p.Name === 'string' && p.Name.trim()
+                    ? p.Name.trim()
+                    : 'Health Resource';
+
+                const desc =
+                typeof p.description === 'string' && p.description.trim()
+                    ? p.description.trim()
+                    : 'No description available';
+
+                const category = p._category || 'Health';
+
+                foodPopup
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                    <div style="font:13px/1.4 sans-serif">
+                    <div style="font-weight:600">${name}</div>
+                    <div style="color:#555;margin:2px 0"><em>${category}</em></div>
+                    <div>${desc}</div>
+                    </div>
+                `)
+                .addTo(map);
+            });
+        });
 
         const ids = await fetchRequestedBgs();
         applyDefaultSelection(ids);
@@ -2392,7 +2619,10 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
     else if (f === 'race-filter') buildRaceBox();
     else if (f === 'income-filter') buildIncomeBox();
     else if (f === 'housesize-filter') buildHouseholdBox();
-    else if (f === 'food-filter') {
+    else if (f === 'health-filter') {
+        setHealthSourcesVisible(true);
+        buildHealthBox();
+    } else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
         setFoodSourcesVisible(true);
         buildFoodBox();

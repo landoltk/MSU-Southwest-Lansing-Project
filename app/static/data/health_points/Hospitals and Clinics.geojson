@@ -1,0 +1,18 @@
+{
+"type": "FeatureCollection",
+"name": "Hospitals and Clinics",
+"features": [
+{ "type": "Feature", "properties": { "Name": "University of Michigan Health-Sparrow Lansing" }, "geometry": { "type": "Point", "coordinates": [ -84.535157, 42.734275, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "McLaren Greater Lansing" }, "geometry": { "type": "Point", "coordinates": [ -84.5018212,42.7018381,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Izzo Family Medical Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5023761,42.6992157,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Oak Street Health South Lansing Primary Care Clinic" }, "geometry": { "type": "Point", "coordinates": [ -84.5679944,42.7016491,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Forest Community Health Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5492205,42.7078636,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Birch Health Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5409993,42.6824695,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Urgent Care - Southside" }, "geometry": { "type": "Point", "coordinates": [ -84.5497036,42.6825143,0 ] } },
+{ "type": "Feature", "properties": { "Name": "University of Michigan Health - Sparrow Lansing Urgent Care" }, "geometry": { "type": "Point", "coordinates": [ -84.5372271,42.7331578,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Urgent Care - Frandor" }, "geometry": { "type": "Point", "coordinates": [ -84.5087867,42.7387411,0 ] } },
+{ "type": "Feature", "properties": { "Name": "98point6 Emergicenter" }, "geometry": { "type": "Point", "coordinates": [ -84.5281635,42.7592772,0 ] } },
+{ "type": "Feature", "properties": { "Name": "East Lansing Urgent Care | University of Michigan Health-Sparrow" }, "geometry": { "type": "Point", "coordinates": [ -84.4493638,42.726335,0 ] } },
+{ "type": "Feature", "properties": { "Name": "Care Free Medical" }, "geometry": { "type": "Point", "coordinates": [ -84.5370807,42.7218223,0 ] } }
+]
+}
