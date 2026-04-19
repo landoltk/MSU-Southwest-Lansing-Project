@@ -35,6 +35,11 @@ let pinnedTableId = null;
 let hoveredTableId = null;
 let hoveredNeighborhoodName = null;
 let pinnedNeighborhoodName = null;
+let hoveredBlockId = null;
+let pinnedBlockId = null;
+const DARK_ORANGE = '#ea580c';    
+const LIGHT_ORANGE = '#fdba74'; 
+let deselectedBlockIds = new Set();
 
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
@@ -143,6 +148,21 @@ async function loadBlocksForSelectedBgs() {
     attachJoinKeyToBlocks(blocks)
     map.getSource('blocks').setData(blocks)
     return blocks
+}
+async function loadBlocksForBgIds(bgIds) {
+    const where = [...bgIds]
+        .map(k => `GEOID20 LIKE '${k}%'`)
+        .join(' OR ');
+
+    const url =
+        'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/' +
+        'tl_2025_26_tabblock20/FeatureServer/0/query' +
+        `?where=${encodeURIComponent(where)}&outFields=*&f=geojson&outSR=4326`;
+
+    const blocks = await fetch(url).then(r => r.json());
+    attachJoinKeyToBlocks(blocks);
+    map.getSource('blocks').setData(blocks);
+    return blocks;
 }
 
 async function joinAcsToBgs(acsUrl, bgUrl) {
@@ -968,6 +988,10 @@ function buildPopulationBox() {
         </table>
         `;
         box.style.display = 'block';
+        pinnedTableId = null;
+        hoveredTableId = null;
+        attachDataRowInteractions();
+        updateTableAndMapHighlight();
         return;
     }
 
@@ -981,6 +1005,112 @@ function buildPopulationBox() {
 function buildRaceBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
+
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
+
+        const selectedBgIds = new Set();
+
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            const blockId = String(p.GEOID20);
+            const bgId = String(p.JOINKEY12 || '');
+
+            if (!selectedBlockIds.has(blockId)) continue;
+            if (!bgId) continue;
+
+            selectedBgIds.add(bgId);
+        }
+
+        const rows = [...selectedBgIds].map(id => {
+            const feature = (blockGroupGeojson.features || []).find(
+                f => String(f.properties?.JOINKEY12) === String(id)
+            );
+
+            const p = feature?.properties || {};
+
+            return {
+                id,
+                name: id,
+                total: Number(p.race_total) || 0,
+                white: Number(p.race_white) || 0,
+                black: Number(p.race_black) || 0,
+                asian: Number(p.race_asian) || 0,
+                other:
+                    (Number(p.race_native) || 0) +
+                    (Number(p.race_other) || 0) +
+                    (Number(p.race_two_plus) || 0)
+            };
+        });
+
+        const totals = rows.reduce(
+            (acc, r) => {
+                acc.total += r.total;
+                acc.white += r.white;
+                acc.black += r.black;
+                acc.asian += r.asian;
+                acc.other += r.other;
+                return acc;
+            },
+            {
+                total: 0,
+                white: 0,
+                black: 0,
+                asian: 0,
+                other: 0
+            }
+        );
+
+        content.innerHTML = `
+            <div style="margin-bottom:10px; font-size:13px; color:#555;">
+                Race data acquired from 2020 Census
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table style="border-collapse:collapse;width:100%; min-width:800px;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Total</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">White</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Black</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Asian</th>
+                            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Other</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="font-weight:bold;background:#f3f4f6;">
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;">Group Total</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.total.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.white.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.black.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.asian.toLocaleString()}</td>
+                            <td style="padding:6px 8px;border-bottom:2px solid #ccc;text-align:right;">${totals.other.toLocaleString()}</td>
+                        </tr>
+
+                        ${rows.map(r => `
+                            <tr data-id="${r.id}">
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(r.name)}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.total.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.white.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.black.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.asian.toLocaleString()}</td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${r.other.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        box.style.display = 'block';
+        pinnedTableId = null;
+        hoveredTableId = null;
+        attachDataRowInteractions();
+        updateTableAndMapHighlight();
+        return;
+    }
 
     if (!selectedIds.size) {
         box.style.display = 'none';
@@ -1079,6 +1209,85 @@ function buildIncomeBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
 
+    if (selectionMode === SelectionMode.LOCKED && selectedBlockIds.size) {
+        const src = map.getSource('blocks')?._data;
+        if (!src) return;
+
+        const selectedBgIds = new Set();
+
+        for (const f of src.features ?? []) {
+            const p = f.properties ?? {};
+            const blockId = String(p.GEOID20);
+            const bgId = String(p.JOINKEY12 || '');
+
+            if (!selectedBlockIds.has(blockId)) continue;
+            if (!bgId) continue;
+
+            selectedBgIds.add(bgId);
+        }
+
+        const rows = [...selectedBgIds].map(id => {
+            const feature = (blockGroupGeojson.features || []).find(
+                f => String(f.properties?.JOINKEY12) === String(id)
+            );
+
+            const p = feature?.properties || {};
+            const income = Number(p.income_median);
+
+            return { id, name: id, income };
+        });
+
+        const validIncomes = rows
+            .map(r => r.income)
+            .filter(v => Number.isFinite(v) && v > 0);
+
+        const avgIncome = validIncomes.length
+            ? Math.round(validIncomes.reduce((sum, v) => sum + v, 0) / validIncomes.length)
+            : 0;
+
+        content.innerHTML = `
+            <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
+                Average Median Household Income: $${avgIncome.toLocaleString()}
+            </div>
+
+            <div style="margin-bottom:10px; font-size:13px; color:#555;">
+                Data from U.S. Census Bureau, ACS 5-Year Estimates
+            </div>
+
+            <table style="border-collapse:collapse;width:100%">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Median Household Income</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(({ id, name, income }) => `
+                        <tr data-id="${id}">
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(name)}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                                ${Number.isFinite(income) && income > 0
+                                    ? `$${income.toLocaleString()}`
+                                    : '(NULL)'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+
+            <div style="margin-top:10px; font-size:13px; color:#555;">
+                (NULL) means there was not enough valid household income data for that block group
+            </div>
+        `;
+
+        box.style.display = 'block';
+        pinnedTableId = null;
+        hoveredTableId = null;
+        attachDataRowInteractions();
+        updateTableAndMapHighlight();
+        return;
+    }
+
     if (!selectedIds.size) {
         box.style.display = 'none';
         return;
@@ -1091,7 +1300,7 @@ function buildIncomeBox() {
 
         const p = feature?.properties || {};
         const name = idToName.get(id) || id;
-        const income = Number(p.income_median)
+        const income = Number(p.income_median);
 
         return { id, name, income };
     });
@@ -1105,38 +1314,39 @@ function buildIncomeBox() {
         : 0;
 
     content.innerHTML = `
-    <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
-        Average Median Household Income: $${avgIncome.toLocaleString()}
-    </div>
+        <div style="margin-bottom:6px; padding:8px 10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; font-weight:600;">
+            Average Median Household Income: $${avgIncome.toLocaleString()}
+        </div>
 
-    <div style="margin-bottom:10px; font-size:13px; color:#555;">
-        Data from U.S. Census Bureau, ACS 5-Year Estimates
-    </div>
+        <div style="margin-bottom:10px; font-size:13px; color:#555;">
+            Data from U.S. Census Bureau, ACS 5-Year Estimates
+        </div>
 
-    <table style="border-collapse:collapse;width:100%">
-        <thead>
-            <tr>
-                <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
-                <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Median Household Income</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${rows.map(({ id, name, income }) => `
-                <tr data-id="${id}">
-                    <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(name)}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
-                        ${Number.isFinite(income) && income > 0 
-                        ? `$${income.toLocaleString()}` 
-                        : '(NULL)'}
-                    </td>
+        <table style="border-collapse:collapse;width:100%">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
+                    <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd;">Median Household Income</th>
                 </tr>
-            `).join('')}
-        </tbody>
-    </table>
-    <div style="margin-top:10px; font-size:13px; color:#555;">
-    (NULL) means there was not enough valid household income data for that block group
-    </div>
-`;
+            </thead>
+            <tbody>
+                ${rows.map(({ id, name, income }) => `
+                    <tr data-id="${id}">
+                        <td style="padding:6px 8px;border-bottom:1px solid #eee;">${formatBgId(name)}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">
+                            ${Number.isFinite(income) && income > 0
+                                ? `$${income.toLocaleString()}`
+                                : '(NULL)'}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+
+        <div style="margin-top:10px; font-size:13px; color:#555;">
+            (NULL) means there was not enough valid household income data for that block group
+        </div>
+    `;
 
     box.style.display = 'block';
     pinnedTableId = null;
@@ -1210,6 +1420,10 @@ function buildHouseholdBox() {
         </table>
         `;
         box.style.display = 'block';
+        pinnedTableId = null;
+        hoveredTableId = null;
+        attachDataRowInteractions();
+        updateTableAndMapHighlight();
         return;
     }
 
@@ -1286,12 +1500,21 @@ function selectAllNeighborhoods() {
     selectedIds.clear();
     selectedNeighborhoods.clear();
     activeId = null;
-    selectionLocked = false;
     hoveredNeighborhoodName = null;
     pinnedNeighborhoodName = null;
 
+    map.setLayoutProperty('bg-fill', 'visibility', 'none');
+    map.setLayoutProperty('bg-outline', 'visibility', 'none');
+    map.setLayoutProperty('default-selected-fill', 'visibility', 'visible');
+    map.setLayoutProperty('active-bg-highlight', 'visibility', 'visible');
+    map.setLayoutProperty('neighborhood-base-fill', 'visibility', 'visible');
+    map.setLayoutProperty('block-deselected', 'visibility', 'none');
+    map.setPaintProperty('default-selected-fill', 'fill-color', '#3b82f6');
+    map.setPaintProperty('default-selected-fill', 'fill-opacity', 0.65);
+
     syncNeighborhoodBaseFill();
     syncSelectedFill();
+
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
 
     renderSelectedList();
@@ -1299,18 +1522,128 @@ function selectAllNeighborhoods() {
 
     document.getElementById('data-box').style.display = 'none';
     document.getElementById('details').textContent =
-        'Click a white neighborhood block group to select its neighborhood(s).';
+        'Click a light blue neighborhood block group to select its neighborhood(s).';
 }
+async function enterNeighborhoodModeFresh() {
+    // wipe all prior selection state
+    activeId = null;
+    hoveredTableId = null;
+    pinnedTableId = null;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+    hoveredBlockId = null;
+    pinnedBlockId = null;
 
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    selectedBlockIds.clear();
+    deselectedBlockIds.clear();
+    lastSubmittedIds = [];
+
+    // clear visual filters
+    map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    map.setFilter('neighborhood-base-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('block-selected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('block-deselected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
+
+    // clear loaded blocks source
+    if (map.getSource('blocks')) {
+        map.getSource('blocks').setData({
+            type: 'FeatureCollection',
+            features: []
+        });
+    }
+
+    clearRadiusCircle();
+    document.getElementById('data-box').style.display = 'none';
+
+    // reset mode back to starting line first
+    selectionModeBG = 'block';
+    await setSelectionMode(SelectionMode.BG_SELECT);
+
+    // now enter neighborhood mode cleanly
+    selectAllNeighborhoods();
+}
+async function enterRadiusModeFresh() {
+    activeId = null;
+    hoveredTableId = null;
+    pinnedTableId = null;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+    hoveredBlockId = null;
+    pinnedBlockId = null;
+
+    selectedIds.clear();
+    selectedNeighborhoods.clear();
+    selectedBlockIds.clear();
+    deselectedBlockIds.clear();
+    lastSubmittedIds = [];
+
+    map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    map.setFilter('neighborhood-base-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
+    map.setFilter('block-selected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('block-deselected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
+
+    if (map.getSource('blocks')) {
+        map.getSource('blocks').setData({
+            type: 'FeatureCollection',
+            features: []
+        });
+    }
+
+    clearRadiusCircle();
+    document.getElementById('data-box').style.display = 'none';
+
+    selectionModeBG = 'block';
+    await setSelectionMode(SelectionMode.BG_SELECT);
+
+    document.getElementById('details').textContent =
+        'Radius mode: click anywhere on the map to select block groups within the radius.';
+}
 function exitNeighborhoodMode() {
     selectionModeBG = 'block';
 
     selectedIds.clear();
     selectedNeighborhoods.clear();
+    selectedBlockIds.clear();
+    deselectedBlockIds.clear();
+
     activeId = null;
+    hoveredNeighborhoodName = null;
+    pinnedNeighborhoodName = null;
+    hoveredBlockId = null;
+    pinnedBlockId = null;
+
+    map.setLayoutProperty('bg-fill', 'visibility', 'visible');
+    map.setLayoutProperty('bg-outline', 'visibility', 'visible');
+    map.setLayoutProperty('default-selected-fill', 'visibility', 'visible');
+    map.setLayoutProperty('active-bg-highlight', 'visibility', 'visible');
+    map.setLayoutProperty('neighborhood-base-fill', 'visibility', 'none');
+    map.setLayoutProperty('block-fill', 'visibility', 'none');
+    map.setLayoutProperty('block-outline', 'visibility', 'none');
+    map.setLayoutProperty('block-selected', 'visibility', 'none');
+    map.setLayoutProperty('block-selected-outline', 'visibility', 'none');
+    map.setLayoutProperty('block-deselected', 'visibility', 'none');
+    map.setLayoutProperty('active-block-highlight', 'visibility', 'none');
 
     clearNeighborhoodBaseFill();
     syncSelectedFill();
+
+    map.setFilter('block-selected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('block-deselected', ['in', ['get', 'GEOID20'], ['literal', []]]);
+    map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
+
+    if (map.getSource('blocks')) {
+        map.getSource('blocks').setData({
+            type: 'FeatureCollection',
+            features: []
+        });
+    }
+
     renderSelectedList();
     updateShowDataButton();
 
@@ -1396,6 +1729,27 @@ function highlightNeighborhoodRow(name) {
 }
 function updateTableAndMapHighlight() {
     const id = pinnedTableId || hoveredTableId || null;
+
+    if (selectionMode === SelectionMode.LOCKED) {
+        if (id) {
+            map.setFilter('active-block-highlight', [
+                'all',
+                ['==', ['get', 'JOINKEY12'], String(id)],
+                ['in', ['get', 'GEOID20'], ['literal', [...selectedBlockIds]]]
+            ]);
+            highlightDataRow(id);
+        } else {
+            map.setFilter('active-block-highlight', [
+                '==',
+                ['get', 'GEOID20'],
+                '___none___'
+            ]);
+
+            const rows = document.querySelectorAll('#data-box tbody tr');
+            rows.forEach(tr => tr.classList.remove('row-active'));
+        }
+        return;
+    }
 
     if (id) {
         map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', String(id)]);
@@ -1518,6 +1872,15 @@ function syncSelectionHeader() {
         header.textContent = "Selection Locked:";
     }
 }
+function updateLockedBlockHighlight() {
+    const id = pinnedBlockId || hoveredBlockId || '___none___';
+
+    map.setFilter('active-block-highlight', [
+        '==',
+        ['get', 'GEOID20'],
+        String(id)
+    ]);
+}
 
 //selection mode helper
 async function setSelectionMode(mode) {
@@ -1534,45 +1897,173 @@ async function setSelectionMode(mode) {
         map.setLayoutProperty('block-outline', 'visibility', 'none')
         map.setLayoutProperty('block-selected', 'visibility', 'none')
         map.setLayoutProperty('block-selected-outline', 'visibility', 'none')
+        map.setLayoutProperty('active-block-highlight', 'visibility', 'none');
+        map.setLayoutProperty('block-deselected', 'visibility', 'none');
+        hoveredBlockId = null;
+        pinnedBlockId = null;
+        map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
         selectedBlockIds.clear()
         updateShowDataButton()
         return
     }
 
     if (mode === SelectionMode.BLOCK_SELECT) {
-        //checks if blocks have been loaded before to prevent wipe when going from locked back to block select
         if (selectedBlockIds.size === 0) {
-            const blocks = await loadBlocksForSelectedBgs()
-            for (const f of blocks.features ?? []) {
-                const id = String(f.properties?.GEOID20)
-                if (id) selectedBlockIds.add(id)
+            let blocks;
+    
+            // if we came from neighborhood mode, only load the SELECTED neighborhood BGs
+            if (selectionModeBG === 'neighborhood') {
+                blocks = await loadBlocksForSelectedBgs();
+    
+                selectedBlockIds.clear();
+                deselectedBlockIds.clear();
+    
+                for (const f of blocks.features ?? []) {
+                    const id = String(f.properties?.GEOID20);
+                    if (id) selectedBlockIds.add(id);
+                }
+            } else {
+                blocks = await loadBlocksForSelectedBgs();
+    
+                selectedBlockIds.clear();
+                deselectedBlockIds.clear();
+    
+                for (const f of blocks.features ?? []) {
+                    const id = String(f.properties?.GEOID20);
+                    if (id) selectedBlockIds.add(id);
+                }
             }
-        } else {
-            //blocks already loaded so skip
         }
-        map.setLayoutProperty('bg-fill', 'visibility', 'none')
-        map.setLayoutProperty('bg-outline', 'visibility', 'none')
-        map.setLayoutProperty('default-selected-fill', 'visibility', 'none')
-        map.setLayoutProperty('active-bg-highlight', 'visibility', 'none')
-        map.setLayoutProperty('block-fill', 'visibility', 'visible')
-        map.setLayoutProperty('block-outline', 'visibility', 'visible')
-        map.setLayoutProperty('block-selected', 'visibility', 'visible')
-        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
-        syncBlockSelectedFill()
-        updateShowDataButton()
-        return
+    
+        // turn off all BG / neighborhood visuals
+        map.setLayoutProperty('bg-fill', 'visibility', 'none');
+        map.setLayoutProperty('bg-outline', 'visibility', 'none');
+        map.setLayoutProperty('default-selected-fill', 'visibility', 'none');
+        map.setLayoutProperty('active-bg-highlight', 'visibility', 'none');
+        map.setLayoutProperty('neighborhood-base-fill', 'visibility', 'none');
+    
+        // clear old blue filters so nothing lingers underneath
+        map.setFilter('default-selected-fill', [
+            'in',
+            ['get', 'JOINKEY12'],
+            ['literal', []]
+        ]);
+        map.setFilter('neighborhood-base-fill', [
+            'in',
+            ['get', 'JOINKEY12'],
+            ['literal', []]
+        ]);
+        map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
+    
+        // turn on block editing layers
+        map.setLayoutProperty('block-fill', 'visibility', 'visible');
+        map.setLayoutProperty('block-outline', 'visibility', 'visible');
+        map.setLayoutProperty('block-selected', 'visibility', 'visible');
+        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible');
+        map.setLayoutProperty('block-deselected', 'visibility', 'visible');
+        map.setLayoutProperty('active-block-highlight', 'visibility', 'none');
+    
+        // selected blocks = dark orange
+        map.setPaintProperty('block-selected', 'fill-color', '#ea580c');
+        map.setPaintProperty('block-selected', 'fill-opacity', 0.65);
+    
+        hoveredBlockId = null;
+        pinnedBlockId = null;
+        map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
+    
+        map.setFilter('block-selected', [
+            'in',
+            ['get', 'GEOID20'],
+            ['literal', [...selectedBlockIds]]
+        ]);
+    
+        map.setFilter('block-deselected', [
+            'in',
+            ['get', 'GEOID20'],
+            ['literal', [...deselectedBlockIds]]
+        ]);
+    
+        updateShowDataButton();
+        return;
     }
-
+    
     if (mode === SelectionMode.LOCKED) {
-        map.setLayoutProperty('block-fill', 'visibility', 'none')
-        map.setLayoutProperty('block-outline', 'visibility', 'none')
-        map.setLayoutProperty('block-selected', 'visibility', 'visible')
-        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
-        syncBlockSelectedFill()
-        updateShowDataButton()
+        map.setLayoutProperty('bg-fill', 'visibility', 'none');
+        map.setLayoutProperty('bg-outline', 'visibility', 'none');
+        map.setLayoutProperty('default-selected-fill', 'visibility', 'none');
+        map.setLayoutProperty('active-bg-highlight', 'visibility', 'none');
+    
+        map.setLayoutProperty('block-fill', 'visibility', 'none');
+        map.setLayoutProperty('block-outline', 'visibility', 'none');
+        map.setLayoutProperty('block-selected', 'visibility', 'visible');
+        map.setLayoutProperty('block-selected-outline', 'visibility', 'visible');
+        map.setLayoutProperty('block-deselected', 'visibility', 'none');
+        map.setLayoutProperty('active-block-highlight', 'visibility', 'visible');
+        map.setLayoutProperty('neighborhood-base-fill', 'visibility', 'none');
+        map.setPaintProperty('block-selected', 'fill-color', '#22c55e');
+        map.setPaintProperty('block-selected', 'fill-opacity', 0.55);
+        
+        map.setFilter('block-selected', [
+            'in',
+            ['get', 'GEOID20'],
+            ['literal', [...selectedBlockIds]]
+        ]);
+    
+        hoveredTableId = null;
+        pinnedTableId = null;
+        map.setFilter('active-block-highlight', ['==', ['get', 'JOINKEY12'], '___none___']);
+    
+        updateShowDataButton();
+        return;
     }
 }
+map.on('click', 'neighborhood-base-fill', e => {
+    if (selectionMode !== SelectionMode.BG_SELECT) return;
+    if (selectionModeBG !== 'neighborhood') return;
+    if (!e.features?.length) return;
 
+    const f = e.features[0];
+    const id = String(f.id ?? f.properties?.JOINKEY12 ?? '');
+    if (!id) return;
+
+    const neighborhoodIds = new Set(
+        Object.values(neighborhoodToBgs).flat().map(String)
+    );
+
+    if (neighborhoodIds.has(id)) {
+        selectNeighborhoodsFromBg(id);
+    }
+});
+map.on('mouseenter', 'neighborhood-base-fill', () => {
+    map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'neighborhood-base-fill', () => {
+    map.getCanvas().style.cursor = '';
+});
+map.on('mousemove', 'block-selected', e => {
+    if (selectionMode !== SelectionMode.LOCKED) return;
+    if (!e.features?.length) return;
+
+    hoveredBlockId = String(e.features[0].properties.GEOID20);
+    updateLockedBlockHighlight();
+});
+
+map.on('mouseleave', 'block-selected', () => {
+    if (selectionMode !== SelectionMode.LOCKED) return;
+
+    hoveredBlockId = null;
+    updateLockedBlockHighlight();
+});
+
+map.on('click', 'block-selected', e => {
+    if (selectionMode !== SelectionMode.LOCKED) return;
+    if (!e.features?.length) return;
+
+    pinnedBlockId = String(e.features[0].properties.GEOID20);
+    hoveredBlockId = null;
+    updateLockedBlockHighlight();
+});
 map.on('load', async () => {
     setLoading(true);
     try {
@@ -1621,9 +2112,10 @@ map.on('load', async () => {
         type: 'fill',
         source: 'arcgis-layer',
         paint: {
-            'fill-color': '#ffffff',
-            'fill-opacity': 0.65
+            'fill-color': '#93c5fd',
+            'fill-opacity': 0.55
         },
+        layout: { visibility: 'none' },
         filter: ['in', ['get', 'JOINKEY12'], ['literal', []]]
         });
 
@@ -1725,6 +2217,27 @@ map.on('load', async () => {
                 'line-width': 2
             }
         });
+        map.addLayer({
+            id: 'active-block-highlight',
+            type: 'fill',
+            source: 'blocks',
+            paint: {
+                'fill-color': '#fde68a',
+                'fill-opacity': 0.6
+            },
+            layout: { visibility: 'none' },
+            filter: ['==', ['get', 'GEOID20'], '___none___']
+        });
+        map.addLayer({
+            id: 'block-deselected',
+            type: 'fill',
+            source: 'blocks',
+            paint: {
+                'fill-color': LIGHT_ORANGE,
+                'fill-opacity': 0.35
+            },
+            filter: ['==', ['get', 'GEOID20'], '___none___']
+        });
 
         //on hover LINK display for troubleshooting
         /*
@@ -1797,12 +2310,30 @@ map.on('load', async () => {
 
         //block on-click
         map.on('click', 'block-fill', e => {
-            if (selectionMode !== SelectionMode.BLOCK_SELECT) return
-            if (!e.features?.length) return
-            const id = String(e.features[0].properties.GEOID20)
-            if (selectedBlockIds.has(id)) selectedBlockIds.delete(id)
-            else selectedBlockIds.add(id)
-            syncBlockSelectedFill()
+            if (selectionMode !== SelectionMode.BLOCK_SELECT) return;
+            if (!e.features?.length) return;
+        
+            const id = String(e.features[0].properties.GEOID20);
+        
+            if (selectedBlockIds.has(id)) {
+                selectedBlockIds.delete(id);
+                deselectedBlockIds.add(id);
+            } else {
+                selectedBlockIds.add(id);
+                deselectedBlockIds.delete(id);
+            }
+        
+            map.setFilter('block-selected', [
+                'in',
+                ['get', 'GEOID20'],
+                ['literal', [...selectedBlockIds]]
+            ]);
+        
+            map.setFilter('block-deselected', [
+                'in',
+                ['get', 'GEOID20'],
+                ['literal', [...deselectedBlockIds]]
+            ]);
         });
 
         //block hover to show formatted id
@@ -2153,11 +2684,15 @@ const zipcodesCheckbox = document.getElementById('zipcodes-display');
 const blockCheckbox = document.getElementById('block-display');
 
 if (radiusCheckbox) {
-    radiusCheckbox.addEventListener('change', () => {
-        updateDisplayMethodUI();
-        if (!radiusCheckbox.checked) {
+    radiusCheckbox.addEventListener('change', async () => {
+        if (radiusCheckbox.checked) {
+            await enterRadiusModeFresh();
+        } else {
             clearRadiusCircle();
+            document.getElementById('details').textContent = 'Click a polygon to view details.';
         }
+
+        updateDisplayMethodUI();
     });
 }
 
@@ -2175,10 +2710,11 @@ if (blockCheckbox) {
     });
 }
 const neighborhoodsCheckbox = document.getElementById('neighborhoods-display');
+
 if (neighborhoodsCheckbox) {
-    neighborhoodsCheckbox.addEventListener('change', () => {
+    neighborhoodsCheckbox.addEventListener('change', async () => {
         if (neighborhoodsCheckbox.checked) {
-            selectAllNeighborhoods();
+            await enterNeighborhoodModeFresh(); // 🔥 THIS is the fix
         } else {
             exitNeighborhoodMode();
         }
