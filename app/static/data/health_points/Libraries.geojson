@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"name": "Libraries",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Delta Township District Library" }, "geometry": { "type": "Point", "coordinates": [ -84.620801, 42.7475738, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CADL - South Lansing Library" }, "geometry": { "type": "Point", "coordinates": [ -84.5488499, 42.6956297, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CADL - Downtown Lansing" }, "geometry": { "type": "Point", "coordinates": [ -84.5535523, 42.7297798, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CADL - Haslett Library" }, "geometry": { "type": "Point", "coordinates": [ -84.4062863, 42.7449188, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CADL - Holt-Delhi Library" }, "geometry": { "type": "Point", "coordinates": [ -84.5224227, 42.6426277, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Main Library" }, "geometry": { "type": "Point", "coordinates": [ -84.483372, 42.7308585, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CADL - Okemos Library" }, "geometry": { "type": "Point", "coordinates": [ -84.4329771, 42.7073755, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing Community College Library" }, "geometry": { "type": "Point", "coordinates": [ -84.5534696, 42.7374917, 0.0 ] } }
+]
+}

@@ -35,6 +35,12 @@ let pinnedTableId = null;
 let hoveredTableId = null;
 let hoveredNeighborhoodName = null;
 let pinnedNeighborhoodName = null;
+let communityGardensOriginal = null;
+
+const gardenPopup = new maplibregl.Popup({
+    closeButton: true,
+    closeOnClick: true
+});
 
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
@@ -75,6 +81,48 @@ const neighborhoodToBgs = {
 };
 const bgToNeighborhoods = new Map();
 
+//food source points globals
+const foodSources = {
+  sources: {},     // key -> geojson
+  colors: {},      // key -> color
+};
+const foodPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
+
+async function loadFoodGeojson({ id, path, color }) {
+    const data = await fetch(path).then(r => r.json());
+
+    const category =
+        data.name ||
+        data.properties?.name ||
+        'Unknown Category';
+
+    for (const f of data.features ?? []) {
+        if (!f.properties) f.properties = {};
+        f.properties._category = category;
+    }
+
+    foodSources.sources[id] = data;
+    foodSources.colors[id] = color;
+
+    map.addSource(id, {
+        type: 'geojson',
+        data
+    });
+
+    map.addLayer({
+        id: `${id}-points`,
+        type: 'circle',
+        source: id,
+        paint: {
+        'circle-radius': 4,
+        'circle-color': color,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5
+        },
+        layout: { visibility: 'none' }
+    });
+}
+
 function buildBgToNeighborhoods() {
     Object.entries(neighborhoodToBgs).forEach(([neighborhood, ids]) => {
         ids.forEach(id => {
@@ -97,11 +145,6 @@ const filterLabels = {
     'health-filter': 'Health',
     'income-filter': 'Income'
 };
-
-const blockHoverPopup = new maplibregl.Popup({
-    closeButton: false,
-    closeOnClick: false
-})
 
 
 //HELPER FUNCTIONS
@@ -916,6 +959,19 @@ function formatBgId(joinKey12) {
     return `County ${county} · Tract ${tract} · Block Group ${bg}`;
 }
 
+function setBlockHoverBox(html) {
+    const box = document.getElementById('block-hover-box');
+    if (!box) return;
+
+    if (!html) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+    } else {
+        box.innerHTML = html;
+        box.style.display = 'block';
+    }
+}
+
 //different filters data visualization boxes
 function buildPopulationBox() {
     const box = document.getElementById('data-box');
@@ -1450,9 +1506,29 @@ function getNeighborhoodPopulation(neighborhoodName) {
 function setCommunityGardensVisible(flag) {
     const v = flag ? 'visible' : 'none';
 
+    if (flag) {
+        filterCommunityGardensToSelectedBlocks();
+    }
+
     if (map.getLayer('community-gardens-fill')) {
         map.setLayoutProperty('community-gardens-fill', 'visibility', v);
         map.setLayoutProperty('community-gardens-outline', 'visibility', v);
+    }
+}
+
+function setFoodSourcesVisible(flag) {
+    Object.keys(foodSources.sources).forEach(id => {
+        if (!map.getLayer(`${id}-points`)) return;
+
+        map.setLayoutProperty(
+        `${id}-points`,
+        'visibility',
+        flag ? 'visible' : 'none'
+        );
+    });
+
+    if (flag) {
+        filterFoodPointsToSelectedBlocks();
     }
 }
 
@@ -1547,6 +1623,8 @@ async function setSelectionMode(mode) {
     }
 
     if (mode === SelectionMode.BLOCK_SELECT) {
+        setCommunityGardensVisible(false);
+        setFoodSourcesVisible(false);
         //checks if blocks have been loaded before to prevent wipe when going from locked back to block select
         if (selectedBlockIds.size === 0) {
             const blocks = await loadBlocksForSelectedBgs()
@@ -1571,13 +1649,108 @@ async function setSelectionMode(mode) {
     }
 
     if (mode === SelectionMode.LOCKED) {
+        setCommunityGardensVisible(false);
+        setFoodSourcesVisible(false);
         map.setLayoutProperty('block-fill', 'visibility', 'none')
         map.setLayoutProperty('block-outline', 'visibility', 'none')
         map.setLayoutProperty('block-selected', 'visibility', 'visible')
         map.setLayoutProperty('block-selected-outline', 'visibility', 'visible')
         syncBlockSelectedFill()
+        filterFoodPointsToSelectedBlocks();
+        filterCommunityGardensToSelectedBlocks();
         updateShowDataButton()
     }
+}
+
+//block level filtering
+function getSelectedBlockPolygons() {
+    const src = map.getSource('blocks')?._data;
+    if (!src) return [];
+
+    return (src.features ?? []).filter(f =>
+        selectedBlockIds.has(String(f.properties?.GEOID20))
+    );
+}
+
+function filterFoodPointsToSelectedBlocks() {
+    const blockPolys = getSelectedBlockPolygons();
+
+    for (const [id, original] of Object.entries(foodSources.sources)) {
+        if (!map.getSource(id)) continue;
+
+        if (!blockPolys.length) {
+        map.getSource(id).setData({
+            type: 'FeatureCollection',
+            name: original.name,
+            features: []
+        });
+        continue;
+        }
+
+        const filtered = [];
+
+        for (const pt of original.features ?? []) {
+        for (const poly of blockPolys) {
+            try {
+            if (turf.booleanPointInPolygon(pt, poly)) {
+                filtered.push(pt);
+                break;
+            }
+            } catch (_) {}
+        }
+        }
+
+        map.getSource(id).setData({
+        type: 'FeatureCollection',
+        name: original.name,
+        features: filtered
+        });
+    }
+}
+
+function filterCommunityGardensToSelectedBlocks() {
+    const src = map.getSource('community-gardens');
+    if (!src || !communityGardensOriginal) return;
+
+    const blockPolys = getSelectedBlockPolygons();
+
+    if (!blockPolys.length) {
+        src.setData({
+        type: 'FeatureCollection',
+        features: []
+        });
+        return;
+    }
+
+    const filtered = [];
+
+    for (const garden of communityGardensOriginal.features) {
+        if (!garden.geometry) continue;
+
+        for (const block of blockPolys) {
+        try {
+            if (turf.booleanIntersects(garden, block)) {
+            filtered.push(garden);
+            break;
+            }
+        } catch (err) {
+            console.warn('Intersection failed', err);
+        }
+        }
+    }
+
+    src.setData({
+        type: 'FeatureCollection',
+        features: filtered
+    });
+    
+    console.log(
+    'Filtering gardens:',
+    communityGardensOriginal?.features?.length,
+    'blocks:',
+    getSelectedBlockPolygons().length
+    );
+
 }
 
 map.on('load', async () => {
@@ -1606,9 +1779,18 @@ map.on('load', async () => {
         
         blockGroupGeojson = data;
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
-        map.addSource('community-gardens', {type: 'geojson', data: communityGardens})
         map.addSource('radius-circle', {type: 'geojson',data: {type: 'FeatureCollection',features: []}});
         map.addSource('blocks', {type: 'geojson',data: {type: 'FeatureCollection',features: []}});
+
+        communityGardensOriginal = await fetch(communityGardens).then(r => r.json());   
+        map.addSource('community-gardens', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: []
+            }
+        });
+
 
         map.addLayer({
         id: 'bg-fill',
@@ -1733,6 +1915,55 @@ map.on('load', async () => {
             }
         });
 
+        //food sources
+        await loadFoodGeojson({
+            id: 'food-pantry',
+            path: 'static/data/food_sources/food_pantries.geojson',
+            color: '#383fc5'
+        });
+
+        await loadFoodGeojson({
+            id: 'extra-gardens',
+            path: 'static/data/food_sources/extra_gardens.geojson',
+            color: '#1d7918'
+        });
+
+        await loadFoodGeojson({
+            id: 'gardens-farmermarkets',
+            path: 'static/data/food_sources/gardens_farmermarkets.geojson',
+            color: '#90de4c'
+        });
+
+        await loadFoodGeojson({
+            id: 'large-grocery',
+            path: 'static/data/food_sources/large_grocery_and_supermarkets.geojson',
+            color: '#b939c8'
+        });
+
+        await loadFoodGeojson({
+            id: 'pharmacy-dollarstore',
+            path: 'static/data/food_sources/pharmacy_dollar_store.geojson',
+            color: '#e92b2b'
+        });
+
+        await loadFoodGeojson({
+            id: 'restaurants',
+            path: 'static/data/food_sources/restaurants.geojson',
+            color: '#ec840d'
+        });
+
+        await loadFoodGeojson({
+            id: 'schools-churches',
+            path: 'static/data/food_sources/schools_churches_communitycenters.geojson',
+            color: '#5d9ee7'
+        });
+
+        await loadFoodGeojson({
+            id: 'small-grocery',
+            path: 'static/data/food_sources/small_grocery_convenience_store.geojson',
+            color: '#e5e239'
+        });
+
         //on hover LINK display for troubleshooting
         /*
         let hoverPopup = new maplibregl.Popup({ closeButton:false, closeOnClick:false });
@@ -1821,27 +2052,118 @@ map.on('load', async () => {
         }
 
         map.on('mousemove', 'block-selected', e => {
-            if (selectionMode !== SelectionMode.LOCKED) return
-            if (!e.features?.length) return
+            if (selectionMode !== SelectionMode.LOCKED) return;
+            if (!e.features?.length) return;
 
-            const p = e.features[0].properties ?? {}
-            const label = formatBlockId(p.GEOID20)
+            const p = e.features[0].properties ?? {};
+            const label = formatBlockId(p.GEOID20);
 
-            map.getCanvas().style.cursor = 'pointer'
-            blockHoverPopup
-            .setLngLat(e.lngLat)
-            .setHTML(
-            `<div style="font:12px/1.3 sans-serif">
-                <div><strong>Block ID</strong></div>
+            map.getCanvas().style.cursor = 'pointer';
+
+            setBlockHoverBox(`
+                <div style="font-weight:600;margin-bottom:4px">Block ID</div>
                 <div>${label}</div>
-            </div>`
-            )
-            .addTo(map)
+            `);
         });
 
         map.on('mouseleave', 'block-selected', () => {
-            map.getCanvas().style.cursor = ''
-            blockHoverPopup.remove()
+            map.getCanvas().style.cursor = '';
+            setBlockHoverBox(null);
+        });
+
+        //gardens on-click
+        map.on('click', 'community-gardens-fill', e => {
+            if (selectionMode !== SelectionMode.LOCKED) return;
+            if (getActiveFilter() !== 'food-filter') return;
+            if (!e.features?.length) return;
+
+            const p = e.features[0].properties ?? {};
+
+            const pick = (...vals) => {
+                for (const v of vals) {
+                if (typeof v === 'string' && v.trim().length) {
+                    return v.trim();
+                }
+                }
+                return null;
+            };
+
+            const name =
+                pick(
+                p.CNVYNAME,
+                p.OWNERNME1,
+                p.OWNERNME2,
+                p.OWNERNAME,
+                p.PARCELNO,
+                p.PARCELNUM
+                ) || 'Community Garden';
+
+            const composedAddress = [
+                typeof p.ADD_NUM === 'string' && p.ADD_NUM.trim(),
+                typeof p.STREET === 'string' && p.STREET.trim(),
+                typeof p.CITY === 'string' && p.CITY.trim(),
+                typeof p.STATE === 'string' && p.STATE.trim(),
+                typeof p.ZIP_CODE === 'string' && p.ZIP_CODE.trim()
+            ].filter(Boolean).join(' ');
+
+            const address =
+                pick(
+                p.SITEADDRES,
+                composedAddress
+                ) || 'Address not available';
+
+            gardenPopup
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                <div style="font:13px/1.4 sans-serif">
+                    <div style="font-weight:600">${name}</div>
+                    <div style="margin-top:4px">${address}</div>
+                </div>
+                `)
+                .addTo(map);
+        });
+
+        map.on('mouseenter', 'community-gardens-fill', () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', 'community-gardens-fill', () => {
+            map.getCanvas().style.cursor = '';
+        });
+
+        //food source point on click
+        Object.keys(foodSources.sources).forEach(id => {
+            map.on('click', `${id}-points`, e => {
+                if (selectionMode !== SelectionMode.LOCKED) return;
+                if (getActiveFilter() !== 'food-filter') return;
+                if (!e.features?.length) return;
+
+                const f = e.features[0];
+                const p = f.properties ?? {};
+
+                const name = p.Name ?? 'Unnamed Location';
+                const desc = p.description ?? 'No description available';
+                const category = p._category || 'Uncategorized';
+
+                foodPopup
+                    .setLngLat(e.lngLat)
+                    .setHTML(`
+                    <div style="font:13px/1.4 sans-serif">
+                        <div style="font-weight:600">${name}</div>
+                        <div style="color:#555;margin:2px 0"><em>${category}</em></div>
+                        <div>${desc}</div>
+                    </div>
+                    `)
+                    .addTo(map);
+            })
+
+            map.on('mouseenter', `${id}-points`, () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', `${id}-points`, () => {
+                map.getCanvas().style.cursor = '';
+            });
         })
 
         const ids = await fetchRequestedBgs();
@@ -1979,6 +2301,8 @@ document.getElementById('reset-last-selection').addEventListener('click', () => 
 });
 
 document.getElementById('show-data-btn').addEventListener('click', () => {
+    setCommunityGardensVisible(false);
+    setFoodSourcesVisible(false);
     const f = getActiveFilter();
     if (!f) return;
 
@@ -2070,6 +2394,7 @@ document.getElementById('show-data-btn').addEventListener('click', () => {
     else if (f === 'housesize-filter') buildHouseholdBox();
     else if (f === 'food-filter') {
         setCommunityGardensVisible(true);
+        setFoodSourcesVisible(true);
         buildFoodBox();
     } else {
         buildPlaceholderBox(filterLabels[f]);
@@ -2226,7 +2551,6 @@ resetSwlBtn.addEventListener('click', async () => {
         }
 
         updateSelectedFilterText();
-        setCommunityGardensVisible(false);
         document.getElementById('data-box').style.display = 'none';
         updateShowDataButton();
         });

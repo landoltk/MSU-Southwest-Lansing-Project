@@ -1,0 +1,26 @@
+{
+"type": "FeatureCollection",
+"name": "Recreational Centers",
+"features": [
+{ "type": "Feature", "properties": { "Name": "East Lansing Hannah Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.485592, 42.741536, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Westside Community YMCA" }, "geometry": { "type": "Point", "coordinates": [ -84.5991889, 42.7177437, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "IM West Fitness Center" }, "geometry": { "type": "Point", "coordinates": [ -84.4871, 42.7288, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Alfreda Schmidt Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.590612, 42.6736083, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Oak Park YMCA" }, "geometry": { "type": "Point", "coordinates": [ -84.5415205, 42.6585248, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "IM East Fitness Center" }, "geometry": { "type": "Point", "coordinates": [ -84.4687003, 42.7247688, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Hope Sports Complex" }, "geometry": { "type": "Point", "coordinates": [ -84.5195376, 42.6715532, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Letts Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.569877, 42.7309016, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Bazonzoes Recreational Provisioning Center and Drive-thru" }, "geometry": { "type": "Point", "coordinates": [ -84.539798, 42.6614956, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Lansing City Arena" }, "geometry": { "type": "Point", "coordinates": [ -84.6203876, 42.7433979, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Maguire Park" }, "geometry": { "type": "Point", "coordinates": [ -84.523873, 42.6839159, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Valhalla Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5071535, 42.6488274, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Cavanaugh Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5582527, 42.6890753, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Poxson Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5408937, 42.6970863, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Danford Island Park" }, "geometry": { "type": "Point", "coordinates": [ -84.6502493, 42.6464837, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Benjamin F. Davis Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5847095, 42.6783106, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Grand Woods Park" }, "geometry": { "type": "Point", "coordinates": [ -84.609134, 42.7570153, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Alfreda Schmidt Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.590612, 42.6736083, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Gier Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5448907, 42.7596313, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Foster Community Center" }, "geometry": { "type": "Point", "coordinates": [ -84.5173986, 42.7348739, 0.0 ] } }
+]
+}

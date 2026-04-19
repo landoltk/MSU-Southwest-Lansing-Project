@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "Soup Kitchens",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Southside Community Kitchen" }, "geometry": { "type": "Point", "coordinates": [ -84.53702, 42.6770036, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Holt Community Food Bank" }, "geometry": { "type": "Point", "coordinates": [ -84.5245711, 42.6410416, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "The Rathbun Accelerator Kitchen & Food Hall" }, "geometry": { "type": "Point", "coordinates": [ -84.5265658, 42.7301585, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "The People's Kitchen" }, "geometry": { "type": "Point", "coordinates": [ -84.5127141, 42.7331703, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Cristo Rey Community Kitchen" }, "geometry": { "type": "Point", "coordinates": [ -84.5394363, 42.7535045, 0.0 ] } }
+]
+}

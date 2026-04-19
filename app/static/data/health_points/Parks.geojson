@@ -1,0 +1,16 @@
+{
+"type": "FeatureCollection",
+"name": "Parks",
+"features": [
+{ "type": "Feature", "properties": { "Name": "Frances Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5883729, 42.717311, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Quentin Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5730365, 42.7158203, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Moores Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5592351, 42.7168453, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Scott Woods Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5300892, 42.7012568, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Hawk Island Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5296636, 42.6921808, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Sharp Park" }, "geometry": { "type": "Point", "coordinates": [ -84.6250199, 42.7494843, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Crego Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5125712, 42.7165874, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Ingham Park" }, "geometry": { "type": "Point", "coordinates": [ -84.5902084, 42.7046048, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "LeLand Park" }, "geometry": { "type": "Point", "coordinates": [ -84.6105652, 42.7267424, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "Anderson Nature Park" }, "geometry": { "type": "Point", "coordinates": [ -84.622688, 42.6953911, 0.0 ] } }
+]
+}
