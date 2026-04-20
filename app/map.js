@@ -1058,6 +1058,9 @@ function buildPopulationBox() {
 
         content.innerHTML = `
         <table style="border-collapse:collapse;width:100%">
+            <div style="margin-bottom:10px; font-size:13px; color:#555;">
+                Data from U.S. Census Bureau, 2024
+            </div>
             <thead>
             <tr>
             <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
@@ -1183,11 +1186,11 @@ function buildRaceBox() {
 
         content.innerHTML = `
             <div style="margin-bottom:10px; font-size:13px; color:#555;">
-                Race estimates based on selected block population share within each block group
+                Data from U.S. Census Bureau, ACS 5-Year Estimates 2024. Block level estimates made based on population ratios.
             </div>
 
             <div style="overflow-x:auto;">
-                <table style="border-collapse:collapse;width:100%; min-width:1400px;">
+                <table style="border-collapse:collapse;width:100%; min-width:1000px;">
                     <thead>
                         <tr>
                             <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
@@ -1395,7 +1398,7 @@ function buildIncomeBox() {
             </div>
 
             <div style="margin-bottom:10px; font-size:13px; color:#555;">
-                Data from U.S. Census Bureau, ACS 5-Year Estimates
+                Data from U.S. Census Bureau, ACS 5-Year Estimates 2024
             </div>
 
             <table style="border-collapse:collapse;width:100%">
@@ -1530,6 +1533,9 @@ function buildHouseholdBox() {
 
         content.innerHTML = `
         <table style="border-collapse:collapse;width:100%">
+            <div style="margin-bottom:10px; font-size:13px; color:#555;">
+                Data from U.S. Census Bureau, 2024
+            </div>
             <thead>
             <tr>
             <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Block Group</th>
@@ -1615,6 +1621,9 @@ function buildNeighborhoodPopulationBox() {
 
     content.innerHTML = `
         <table style="border-collapse:collapse;width:100%">
+            <div style="margin-bottom:10px; font-size:13px; color:#555;">
+                Data from U.S. Census Bureau, 2024
+            </div>
             <thead>
                 <tr>
                     <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;">Neighborhood</th>
@@ -1665,7 +1674,9 @@ function buildFoodBox(){
             <span>Small Grocery & Convenience Stores</span>
         </div>
     </div>
-    <p>Credit to Grace Densham, Landscape Architecture Department for the Community Gardens and Food Sources data.</p>`
+    <div style="margin-bottom:10px; font-size:13px; color:#555;">
+        Data from Grace Densham, Landscape Architecture Department, Michigan State University
+    </div>`
     box.style.display = 'block'
 }
 
@@ -1700,7 +1711,7 @@ function buildHealthBox() {
         <p style="margin-top:10px; font-size:13px; color:#555">
         Health-related points are displayed in the region based on criteria
         from the Healthy City Assessment project by Frank Luginbill,
-        Noah Mueller, Jun Han, and Amman Thasin.
+        Noah Mueller, Jun Han, and Amman Thasin pulled by Google Maps API, 2026.
         </p>
     `;
     box.style.display = 'block';
@@ -2143,6 +2154,9 @@ async function setSelectionMode(mode) {
     syncSelectionHeader()
 
     if (mode === SelectionMode.BG_SELECT) {
+        setCommunityGardensVisible(false);
+        setFoodSourcesVisible(false);
+        setHealthSourcesVisible(false);
         map.setLayoutProperty('bg-fill', 'visibility', 'visible')
         map.setLayoutProperty('bg-outline', 'visibility', 'visible')
         map.setLayoutProperty('default-selected-fill', 'visibility', 'visible')
