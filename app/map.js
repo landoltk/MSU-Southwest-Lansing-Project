@@ -1222,7 +1222,7 @@ map.on('load', async () => {
 
         map.on('click', 'block-fill', e => {
             if (selectionMode !== SelectionMode.BLOCK_SELECT) return;
-            if (getDisplayMode() === 'radius') return;
+            if (getDisplayMode() === 'radius') return; // prevent toggling off the clicked block during radius mode
             if (!e.features?.length) return;
         
             const id = String(e.features[0].properties.GEOID20);
