@@ -5,19 +5,20 @@ Requirements:
 <br>
 <br>Library dependencies can be found in requirements.txt including ideal version numbers.
 <br>Use pip install to install the required libraries
+<br>```pip install -r requirements.txt```
 <br>
 <br>To run the app locally enter the app directory using the following command:
 <br>```cd app```
 <br>Then run the following command to start the app: 
 <br>```uvicorn main:app --reload```
 <br>
-<br>To build the app using Render.com
+<br>To build the app using Render.com:
 <br>Utilize this repo or create a fork
 <br>Connect the repo to a Render Web Service
 <br>Set the build command to: pip install -r requirements.txt
 <br>Set the start command to: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
 <br>
-<br>Instructions on how to use the web app can be found in the README
+<br>Instructions on how to use the web app can be found in the README or in the Tutorial section of the app
 <br>
 <br>Data Pipeline
 <br>

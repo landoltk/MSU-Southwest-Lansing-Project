@@ -1033,6 +1033,11 @@ function setBlockHoverBox(html) {
     }
 }
 
+function closeAllPopups() {
+    if (foodPopup) foodPopup.remove();
+    if (gardenPopup) gardenPopup.remove();
+}
+
 //different filters data visualization boxes
 function buildPopulationBox() {
     const box = document.getElementById('data-box');
@@ -2082,7 +2087,13 @@ function highlightDataRow(id) {
 }
 async function resetToSouthwestLansing() {
     const ids = await fetchRequestedBgs();
+    exitNeighborhoodMode();
     //console.log('reset ids:', ids);
+    //uncheck checkboxes for neighborhood and radius
+    const checkboxes = document.querySelectorAll('.display-checkbox');
+    checkboxes.forEach((checkbox) => {
+        checkbox.checked = false;
+    });
 
     selectedIds.clear();
     activeId = null;
@@ -2154,9 +2165,13 @@ async function setSelectionMode(mode) {
     syncSelectionHeader()
 
     if (mode === SelectionMode.BG_SELECT) {
+        closeAllPopups();
         setCommunityGardensVisible(false);
         setFoodSourcesVisible(false);
         setHealthSourcesVisible(false);
+        document.getElementById('neighborhoods-display').disabled = false;
+        document.getElementById('radius-display').disabled = false;
+        document.getElementById('reset-swl').disabled = false;
         map.setLayoutProperty('bg-fill', 'visibility', 'visible')
         map.setLayoutProperty('bg-outline', 'visibility', 'visible')
         map.setLayoutProperty('default-selected-fill', 'visibility', 'visible')
@@ -2171,14 +2186,19 @@ async function setSelectionMode(mode) {
         pinnedBlockId = null;
         map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
         selectedBlockIds.clear()
+        syncSelectedFill();
         updateShowDataButton()
         return
     }
 
     if (mode === SelectionMode.BLOCK_SELECT) {
+        closeAllPopups();
         setCommunityGardensVisible(false);
         setFoodSourcesVisible(false);
         setHealthSourcesVisible(false);
+        document.getElementById('neighborhoods-display').disabled = false;
+        document.getElementById('radius-display').disabled = false;
+        document.getElementById('reset-swl').disabled = false;
         //checks if blocks have been loaded before to prevent wipe when going from locked back to block select
         if (selectedBlockIds.size === 0) {
             let blocks;
@@ -2266,6 +2286,12 @@ async function setSelectionMode(mode) {
         syncBlockSelectedFill()
         filterFoodPointsToSelectedBlocks();
         filterCommunityGardensToSelectedBlocks();
+        clearRadiusCircle();
+
+        document.getElementById('neighborhoods-display').disabled = true;
+        document.getElementById('radius-display').disabled = true;
+        document.getElementById('reset-swl').disabled = true;
+
         map.setLayoutProperty('bg-fill', 'visibility', 'none');
         map.setLayoutProperty('bg-outline', 'visibility', 'none');
         map.setLayoutProperty('default-selected-fill', 'visibility', 'none');
@@ -3124,6 +3150,7 @@ document.getElementById('reset-last-selection').addEventListener('click', () => 
 document.getElementById('show-data-btn').addEventListener('click', () => {
     setCommunityGardensVisible(false);
     setFoodSourcesVisible(false);
+    setHealthSourcesVisible(false);
     const f = getActiveFilter();
     if (!f) return;
 
@@ -3364,24 +3391,25 @@ resetSwlBtn.addEventListener('click', async () => {
     const cb = document.getElementById(id);
     if (cb) {
         cb.addEventListener('change', () => {
-        if (selectionMode !== SelectionMode.LOCKED) {
-            cb.checked = false;
-            return;
-        }
+            closeAllPopups();
+            if (selectionMode !== SelectionMode.LOCKED) {
+                cb.checked = false;
+                return;
+            }
 
-        if (cb.checked) {
-            ['food-filter', 'housesize-filter', 'race-filter', 'population-filter', 'bgdesc-filter']
-            .forEach(other => {
-                if (other !== id) {
-                const o = document.getElementById(other);
-                if (o) o.checked = false;
-                }
-            });
-        }
+            if (cb.checked) {
+                ['food-filter', 'housesize-filter', 'race-filter', 'population-filter', 'bgdesc-filter']
+                .forEach(other => {
+                    if (other !== id) {
+                    const o = document.getElementById(other);
+                    if (o) o.checked = false;
+                    }
+                });
+            }
 
-        updateSelectedFilterText();
-        document.getElementById('data-box').style.display = 'none';
-        updateShowDataButton();
+            updateSelectedFilterText();
+            document.getElementById('data-box').style.display = 'none';
+            updateShowDataButton();
         });
     }
 });
