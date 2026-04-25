@@ -21,12 +21,12 @@ const populationACS = populationACSBase + '/0/query?where=1=1&outFields=GEO_ID,B
 const raceACS = raceACSBase + '/0/query?where=1=1&outFields=*&f=csv'
 const communityGardens = communityGardensBase + '/0/query?where=1=1&outFields=*&f=geojson&outSR=4326'
 
+//global constants
 let activeId = null;
 const selectedIds = new Set();
 const selectedBlockIds = new Set();
 const idToName = new Map();
 const idToRow = new Map();
-
 const SelectionMode = {
     BG_SELECT: 'bg-select',
     BLOCK_SELECT: 'block-select',
@@ -43,7 +43,6 @@ let hoveredTableId = null;
 let hoveredNeighborhoodName = null;
 let pinnedNeighborhoodName = null;
 let communityGardensOriginal = null;
-
 const gardenPopup = new maplibregl.Popup({
     closeButton: true,
     closeOnClick: true
@@ -54,6 +53,7 @@ const DARK_ORANGE = '#ea580c';
 const LIGHT_ORANGE = '#fdba74'; 
 let deselectedBlockIds = new Set();
 
+//neighborhood globals
 const neighborhoodToBgs = {
     "Coachlight Neighborhood Association": [
         "260650051002"
@@ -93,6 +93,16 @@ const neighborhoodToBgs = {
 };
 const bgToNeighborhoods = new Map();
 
+//filter globals
+const filterLabels = {
+    'food-filter': 'Food',
+    'housesize-filter': 'Household Ownership',
+    'race-filter': 'Race',
+    'population-filter': 'Population',
+    'health-filter': 'Health',
+    'income-filter': 'Income'
+};
+
 //food source points globals
 const foodSources = {
   sources: {},     // key -> geojson
@@ -100,6 +110,7 @@ const foodSources = {
 };
 const foodPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
 
+//Takes food source geojson files and adds the points to the map while following the color coding for different categories
 async function loadFoodGeojson({ id, path, color }) {
     const data = await fetch(path).then(r => r.json());
 
@@ -141,6 +152,7 @@ const healthSources = {
     colors: {}
 }
 
+//loads in points for health and adds to map while following color coding for different categories
 async function loadHealthGeojson({ id, path, color }) {
     const data = await fetch(path).then(r => r.json());
 
@@ -187,18 +199,7 @@ function buildBgToNeighborhoods() {
         });
     });
 }
-
 buildBgToNeighborhoods();
-
-const filterLabels = {
-    'food-filter': 'Food',
-    'housesize-filter': 'Household Ownership',
-    'race-filter': 'Race',
-    'population-filter': 'Population',
-    'health-filter': 'Health',
-    'income-filter': 'Income'
-};
-
 
 //HELPER FUNCTIONS
 //id standardization
@@ -226,7 +227,7 @@ function attachJoinKeyToBlocks(blockGeojson) {
     }
 }
 
-//dynamic request for block level data
+//dynamic request for block level data reducing amount of requests from arcGIS (limit is ~1000 polygons)
 async function loadBlocksForSelectedBgs() {
     const where = [...selectedIds]
         .map(k => `GEOID20 LIKE '${k}%'`)
@@ -240,22 +241,8 @@ async function loadBlocksForSelectedBgs() {
     map.getSource('blocks').setData(blocks)
     return blocks
 }
-async function loadBlocksForBgIds(bgIds) {
-    const where = [...bgIds]
-        .map(k => `GEOID20 LIKE '${k}%'`)
-        .join(' OR ');
 
-    const url =
-        'https://services.arcgis.com/uHAHKfH1Z5ye1Oe0/arcgis/rest/services/' +
-        'tl_2025_26_tabblock20/FeatureServer/0/query' +
-        `?where=${encodeURIComponent(where)}&outFields=*&f=geojson&outSR=4326`;
-
-    const blocks = await fetch(url).then(r => r.json());
-    attachJoinKeyToBlocks(blocks);
-    map.getSource('blocks').setData(blocks);
-    return blocks;
-}
-
+//attaches ACS loaded data to the BG data within the code to make identification and data pulls easier
 async function joinAcsToBgs(acsUrl, bgUrl) {
     const [acs, bg] = await Promise.all([
         fetch(acsUrl).then(r => r.json()).then(j =>
@@ -287,6 +274,8 @@ async function joinAcsToBgs(acsUrl, bgUrl) {
 
     return bg
 }
+
+//attaches Race data to BG data to make data pulls easier
 async function joinRaceToBgs(bgGeojson) {
     const raceRows = await fetchCsvRows('static/data/race_data.csv');
 
@@ -367,6 +356,8 @@ async function joinRaceToBgs(bgGeojson) {
 
     return bgGeojson;
 }
+
+//pulls feature collection from arcGIS by URL
 async function fetchArcgisRows(url) {
     const r = await fetch(url);
     const j = await r.json();
@@ -376,7 +367,7 @@ async function fetchArcgisRows(url) {
     return (j.features || []).map(f => f.attributes || {});
 }
 
-//pull from txt file
+//pull from txt file to get default BG selection
 async function fetchRequestedBgs() {
     const res = await fetch('static/data/requested_bg.txt', { cache: 'no-store' });
     if (!res.ok) return [];
@@ -386,60 +377,8 @@ async function fetchRequestedBgs() {
         .map(s => key12FromBgGEOID(s))
         .filter(Boolean);
 }
-async function fetchRaceRows() {
-    const rows = await fetchCsvRows('static/data/race_data.csv');
-    const out = {};
 
-    rows.forEach(row => {
-        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
-        if (!key) return;
-
-        out[key] = {
-            race_total: row.race_total,
-            race_white: row.race_white,
-            race_black: row.race_black,
-            race_native: row.race_native,
-            race_asian: row.race_asian,
-            race_pacific: row.race_pacific,
-            race_other: row.race_other,
-            race_two_plus: row.race_two_plus
-        };
-    });
-
-    return out;
-}
-async function fetchIncomeRows() {
-    const rows = await fetchCsvRows('static/data/income_data.csv');
-    const out = {};
-
-    rows.forEach(row => {
-        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
-        if (!key) return;
-
-        out[key] = {
-            income_median: row.income_median
-        };
-    });
-
-    return out;
-}
-async function fetchHouseholdRows() {
-    const rows = await fetchCsvRows('static/data/household_ownership_data.csv');
-    const out = {};
-
-    rows.forEach(row => {
-        const key = String(row.geoid || row.GEOID || row.GEO_ID || '').replace(/\D/g, '').slice(-12);
-        if (!key) return;
-
-        out[key] = {
-            household_total: row.household_total,
-            household_owner: row.household_owner,
-            household_renter: row.household_renter
-        };
-    });
-
-    return out;
-}
+//attaches Income data to BG data to make data pulls easier
 async function joinIncomeToBgs(bgGeojson) {
     const incomeRows = await fetchCsvRows('static/data/income_data.csv');
 
@@ -486,6 +425,8 @@ async function joinIncomeToBgs(bgGeojson) {
 
     return bgGeojson;
 }
+
+//attaches Household data to BG to make data pulls easier
 async function joinHouseholdToBgs(bgGeojson) {
     const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
     
@@ -557,6 +498,7 @@ async function joinHouseholdToBgs(bgGeojson) {
     return bgGeojson;
 }
 
+//helper function for BG data joins to pull data from csvs
 async function fetchCsvRows(url) {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Could not load CSV: ${url}`);
@@ -680,6 +622,8 @@ function buildNeighborhoodTable(config) {
     });
     updateNeighborhoodTableAndMapHighlight();
 }
+
+//csv reader helper function
 function parseCsvLine(line) {
     const out = [];
     let cur = '';
@@ -705,6 +649,8 @@ function parseCsvLine(line) {
     out.push(cur);
     return out;
 }
+
+//bg label breakdown helper function
 function parseBgLabel(name) {
     const s = String(name ?? '');
     if (!s.length) return { tract: s, bg: s };
@@ -713,6 +659,8 @@ function parseBgLabel(name) {
         bg: s.slice(-1)
     };
 }
+
+//table and map highlighting for mouse actions
 function attachDataRowInteractions() {
     const rows = document.querySelectorAll('#data-box tbody tr[data-id]');
 
@@ -736,6 +684,7 @@ function attachDataRowInteractions() {
         });
     });
 }
+
 //renders selected id list
 function renderSelectedList() {
     const list = document.getElementById('selected-list');
@@ -769,7 +718,6 @@ function renderSelectedList() {
                 updateNeighborhoodTableAndMapHighlight();
             };
         });
-
         return;
     }
 
@@ -788,6 +736,7 @@ function renderSelectedList() {
     });
 }
 
+//pulls current display mode
 function getDisplayMode() {
     if (document.getElementById('radius-display')?.checked) return 'radius';
     if (document.getElementById('neighborhoods-display')?.checked) return 'neighborhoods';
@@ -796,6 +745,7 @@ function getDisplayMode() {
     return 'swl';
 }
 
+//selection mode updating function
 function updateDisplayMethodUI() {
     const radiusControls = document.getElementById('radius-controls');
     const neighborhoodControls = document.getElementById('neighborhood-controls');
@@ -822,6 +772,7 @@ function updateDisplayMethodUI() {
     }
 }
 
+//radius clear helper
 function clearRadiusCircle() {
     lastRadiusCircle = null;
 
@@ -833,6 +784,7 @@ function clearRadiusCircle() {
     }
 }
 
+//block group selection by radius using turf.js for intersection
 function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
     if (!blockGroupGeojson || !map.getSource('radius-circle')) return;
     if (!Number.isFinite(radiusMiles) || radiusMiles <= 0) return;
@@ -872,13 +824,16 @@ function selectBlockGroupsByRadius(centerLngLat, radiusMiles) {
         details.textContent = `Radius selection complete: ${selectedIds.size} block group(s) selected within ${radiusMiles} mile(s).`;
     }
 }
-//data button logic
+
+//filter pull
 function getActiveFilter(){
     return Object.keys(filterLabels).find(id => {
         const cb = document.getElementById(id)
         return cb && cb.checked
     })
 }
+
+//filter text update
 function updateSelectedFilterText() {
     const el = document.getElementById('selected-filter-display');
     const active = getActiveFilter();
@@ -891,33 +846,8 @@ function updateSelectedFilterText() {
         el.textContent = 'Selected Filter: None';
     }
 }
-function key12FromGeoName(name) {
-    const s = String(name ?? '').trim();
 
-    const bgMatch = s.match(/Block Group\s+(\d+)/i);
-    const tractMatch = s.match(/Census Tract\s+([\d.]+)/i);
-    const countyMatch = s.match(/(Ingham|Eaton|Clinton)\s+County/i);
-
-    if (!bgMatch || !tractMatch || !countyMatch) return null;
-
-    const bg = bgMatch[1];
-    const tractRaw = tractMatch[1].replace('.', '');
-    const tract = tractRaw.padStart(6, '0');
-
-    const countyName = countyMatch[1].toLowerCase();
-    const countyCodeMap = {
-        ingham: '065',
-        eaton: '045',
-        clinton: '037'
-    };
-
-    const county = countyCodeMap[countyName];
-    if (!county) return null;
-
-    return `26${county}${tract}${bg}`;
-}
-
-//data button logic
+//show data activationd helper
 function updateShowDataButton() {
     const btn = document.getElementById('show-data-btn');
     btn.disabled = !(
@@ -927,6 +857,7 @@ function updateShowDataButton() {
     );
 }
 
+//limits map to selected block groups list
 function syncSelectedFill() {
     map.setFilter('default-selected-fill', [
         'in',
@@ -934,6 +865,16 @@ function syncSelectedFill() {
         ['literal', [...selectedIds]]
     ]);
 }
+
+//limits map to selected blocks list
+function syncBlockSelectedFill() {
+    map.setFilter('block-selected', [
+        'in',
+        ['get', 'GEOID20'],
+        ['literal', [...selectedBlockIds]]
+    ]);
+}
+
 function syncNeighborhoodBaseFill() {
     const neighborhoodIds = [...new Set(
         Object.values(neighborhoodToBgs).flat().map(String)
@@ -953,14 +894,7 @@ function clearNeighborhoodBaseFill() {
     ]);
 }
 
-function syncBlockSelectedFill() {
-    map.setFilter('block-selected', [
-        'in',
-        ['get', 'GEOID20'],
-        ['literal', [...selectedBlockIds]]
-    ]);
-}
-
+//on click bg selection
 function toggleSelection(id) {
     const key = String(id);
     if (selectedIds.has(key)) selectedIds.delete(key);
@@ -970,6 +904,7 @@ function toggleSelection(id) {
     updateShowDataButton();
 }
 
+//highlight block groups
 function highlightActive(id) {
     activeId = String(id);
     pinnedTableId = String(id);
@@ -1011,7 +946,7 @@ function aggregateBlocksByBg() {
     return out
 }
 
-//formatting helper for geoids
+//formatting helper for geoids for data tables
 function formatBgId(joinKey12) {
     const d = String(joinKey12 ?? '').replace(/\D/g, '');
     if (d.length !== 12) return joinKey12;
@@ -1027,6 +962,15 @@ function formatBgId(joinKey12) {
     return `County ${county} · Tract ${tract} · Block Group ${bg}`;
 }
 
+//block id formatting for hover block
+function formatBlockId(geoid20) {
+    const d = String(geoid20 ?? '').replace(/\D/g, '')
+    if (d.length !== 15) return geoid20
+    const tractRaw = d.slice(5, 11); 
+    return `County ${parseInt(d.slice(2, 5), 10)} · Tract ${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)} · Block Group ${d.slice(11, 12)} · Block ${parseInt(d.slice(12), 10)}`
+}
+
+//helper for block id box top left
 function setBlockHoverBox(html) {
     const box = document.getElementById('block-hover-box');
     if (!box) return;
@@ -1040,6 +984,7 @@ function setBlockHoverBox(html) {
     }
 }
 
+//clean up helper
 function closeAllPopups() {
     if (foodPopup) foodPopup.remove();
     if (gardenPopup) gardenPopup.remove();
@@ -1968,6 +1913,8 @@ function highlightNeighborhoodRow(name) {
         }
     });
 }
+
+//creates and updates highlights for table and map for table hover
 function updateTableAndMapHighlight() {
     const id = pinnedTableId || hoveredTableId || null;
 
@@ -2035,6 +1982,8 @@ function getNeighborhoodPopulation(neighborhoodName) {
 
     return total;
 }
+
+//garden layer visibility helper function
 function setCommunityGardensVisible(flag) {
     const v = flag ? 'visible' : 'none';
 
@@ -2048,6 +1997,7 @@ function setCommunityGardensVisible(flag) {
     }
 }
 
+//food source points visibility helper function
 function setFoodSourcesVisible(flag) {
     Object.keys(foodSources.sources).forEach(id => {
         if (!map.getLayer(`${id}-points`)) return;
@@ -2064,6 +2014,7 @@ function setFoodSourcesVisible(flag) {
     }
 }
 
+//health source points visibility helper function
 function setHealthSourcesVisible(flag) {
     Object.keys(healthSources.sources).forEach(id => {
         if (!map.getLayer(`${id}-points`)) return;
@@ -2092,6 +2043,8 @@ function highlightDataRow(id) {
         }
     });
 }
+
+//SWL default selection reset
 async function resetToSouthwestLansing() {
     const ids = await fetchRequestedBgs();
     exitNeighborhoodMode();
@@ -2117,6 +2070,8 @@ async function resetToSouthwestLansing() {
     document.getElementById('details').textContent = 'Click a polygon to view details.';
     updateDisplayMethodUI();
 }
+
+//status set helper function
 function setLoading(flag) {
     const btn = document.getElementById('reload');
     if (btn) {
@@ -2124,7 +2079,6 @@ function setLoading(flag) {
         btn.textContent = flag ? 'Loading...' : 'Reload list';
     }
 }
-
 function setStatus(msg) {
     const el = document.getElementById('status');
     if (el) el.textContent = msg;
@@ -2144,6 +2098,7 @@ function syncSelectionModeUI() {
     }
 }
 
+//selection text update function
 function syncSelectionHeader() {
     const header = document.getElementById('selection-mode');
 
@@ -2155,6 +2110,8 @@ function syncSelectionHeader() {
         header.textContent = "Selection Locked:";
     }
 }
+
+//block highlight updater for on click on hover
 function updateLockedBlockHighlight() {
     const id = pinnedBlockId || hoveredBlockId || '___none___';
 
@@ -2165,7 +2122,7 @@ function updateLockedBlockHighlight() {
     ]);
 }
 
-//selection mode helper
+//selection mode helper, controls what is visible and what updates for each selection mode
 async function setSelectionMode(mode) {
     selectionMode = mode
     syncSelectionModeUI()
@@ -2339,6 +2296,7 @@ function getSelectedBlockPolygons() {
     );
 }
 
+//filters down food points to block selection
 function filterFoodPointsToSelectedBlocks() {
     const blockPolys = getSelectedBlockPolygons();
 
@@ -2375,6 +2333,7 @@ function filterFoodPointsToSelectedBlocks() {
     }
 }
 
+//filters down community gardens to block selection
 function filterCommunityGardensToSelectedBlocks() {
     const src = map.getSource('community-gardens');
     if (!src || !communityGardensOriginal) return;
@@ -2419,6 +2378,7 @@ function filterCommunityGardensToSelectedBlocks() {
     );
 }
 
+//filters health points down to block selection
 function filterHealthPointsToSelectedBlocks() {
     const blockPolys = getSelectedBlockPolygons();
 
@@ -2502,6 +2462,7 @@ map.on('click', 'block-selected', e => {
     hoveredBlockId = null;
     updateLockedBlockHighlight();
 });
+//MAP LOADING SECTION
 map.on('load', async () => {
     setLoading(true);
     try {
@@ -2526,11 +2487,11 @@ map.on('load', async () => {
             console.error('Household join failed:', err);
         }
         
+        //data sources
         blockGroupGeojson = data;
         map.addSource('arcgis-layer',{type:'geojson',data,promoteId:'JOINKEY12'})
         map.addSource('radius-circle', {type: 'geojson',data: {type: 'FeatureCollection',features: []}});
         map.addSource('blocks', {type: 'geojson',data: {type: 'FeatureCollection',features: []}});
-
         communityGardensOriginal = await fetch(communityGardens).then(r => r.json());   
         map.addSource('community-gardens', {
             type: 'geojson',
@@ -2540,7 +2501,7 @@ map.on('load', async () => {
             }
         });
 
-
+        //map layers
         map.addLayer({
         id: 'bg-fill',
         type: 'fill',
@@ -2785,6 +2746,7 @@ map.on('load', async () => {
         });
         */
 
+        //hover and click functionality
         map.on('mouseenter', 'bg-fill', () => {
                 map.getCanvas().style.cursor = 'pointer';
             });
@@ -2862,14 +2824,6 @@ map.on('load', async () => {
                 ['literal', [...deselectedBlockIds]]
             ]);
         });
-
-        //block hover to show formatted id
-        function formatBlockId(geoid20) {
-            const d = String(geoid20 ?? '').replace(/\D/g, '')
-            if (d.length !== 15) return geoid20
-            const tractRaw = d.slice(5, 11); 
-            return `County ${parseInt(d.slice(2, 5), 10)} · Tract ${parseInt(tractRaw.slice(0, -2), 10)}.${tractRaw.slice(-2)} · Block Group ${d.slice(11, 12)} · Block ${parseInt(d.slice(12), 10)}`
-        }
 
         map.on('mousemove', 'block-selected', e => {
             if (selectionMode !== SelectionMode.LOCKED) return;
@@ -3099,6 +3053,7 @@ document.getElementById('submit-selection').addEventListener('click', () => {
     'income-filter'
 ];
 
+//filters checkboxes listener
 filterIds.forEach(id => {
     const cb = document.getElementById(id);
     if (!cb) return;
@@ -3118,6 +3073,7 @@ filterIds.forEach(id => {
         document.getElementById('data-box').style.display = 'none';
     });
 });
+
 document.getElementById('reset-last-selection').addEventListener('click', () => {
     if (!lastSubmittedIds.length) return;
 
@@ -3263,16 +3219,15 @@ document.getElementById('close-data-box').addEventListener('click', () => {
     document.getElementById('data-box').style.display = 'none';
 });
 
+//drawer constants
 const drawerToggle = document.getElementById('drawer-toggle');
 const drawerPanel = document.getElementById('drawer-panel');
-
-
 const filtersDrawerToggle = document.getElementById('filters-drawer-toggle');
 const filtersDrawerPanel = document.getElementById('filters-drawer-panel');
-
 const demoDrawerToggle = document.getElementById('demo-drawer-toggle');
 const demoDrawerPanel = document.getElementById('demo-drawer-panel');
 
+//clean close of all drawers
 function closeAllDrawers() {
     drawerPanel.classList.remove('open');
     drawerToggle.classList.remove('open');
@@ -3284,6 +3239,7 @@ function closeAllDrawers() {
     demoDrawerToggle.classList.remove('open');
 }
 
+//cleanly closes drawers to open new one if one is already open
 function switchDrawer(panel, toggle) {
     const isAlreadyOpen = panel.classList.contains('open');
 
@@ -3301,6 +3257,7 @@ function switchDrawer(panel, toggle) {
     }
 }
 
+//drawer listeners
 drawerToggle.addEventListener('click', () => {
     switchDrawer(drawerPanel, drawerToggle);
 });
@@ -3312,9 +3269,10 @@ filtersDrawerToggle.addEventListener('click', () => {
 demoDrawerToggle.addEventListener('click', () => {
     switchDrawer(demoDrawerPanel, demoDrawerToggle);
 });
+
 const displayCheckboxes = document.querySelectorAll('.display-checkbox');
 const resetSwlBtn = document.getElementById('reset-swl');
-
+//selection mode checkboxes listener
 displayCheckboxes.forEach(cb => {
     cb.addEventListener('change', () => {
         if (cb.checked) {
@@ -3338,6 +3296,7 @@ displayCheckboxes.forEach(cb => {
         updateDisplayMethodUI();
     });
 });
+
 const radiusCheckbox = document.getElementById('radius-display');
 const zipcodesCheckbox = document.getElementById('zipcodes-display');
 const blockCheckbox = document.getElementById('block-display');
@@ -3383,6 +3342,8 @@ if (neighborhoodsCheckbox) {
     });
 }
 updateDisplayMethodUI();
+
+//SWL reset button listener
 resetSwlBtn.addEventListener('click', async () => {
     await resetToSouthwestLansing();
 });
