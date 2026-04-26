@@ -6,11 +6,9 @@ Group Members: Mason Lee, Kyle Landolt, Vibu Darshan, Will McNeilly
 This course is a semester long project where you collaborate with an organization. Our community partner is the CCED (Center for Community and Economic Development) and our purpose is to build an open-source tool that can present community data about Southwest Lansing in a user-friendly and understandable way. Our goal was to demonstrate this tool in a way that is comprehensible for non-data scientists. We are exhilarated to have taken part in this project and we are super intrigued to see what future capstone teams could add.
 <br>
 <br>
-MVP Video Link
+**Final Project Video Link:**
 <br>
-<br>
-https://michiganstate.sharepoint.com/:v:/s/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/IQAHOiGqXb7DTLhUoLPM53q5ASNbF7zFKoUlcDQwD6v0tZI?e=KzlmKz&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D
-<br>
+https://michiganstate.sharepoint.com/:v:/r/sites/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/Shared%20Documents/MSU-SW_Lansing/Project_Deliverables/MSU_SWL_Final_Video.mp4?csf=1&web=1&e=qLxefA
 **Official App Link:**
 <br>
 <br>
@@ -41,11 +39,9 @@ Northern Boundary - West Mt Hope Avenue
 
 Southern Boundary - I-96 boundary
 <br>
-
-# Layers Completed:
-
-When the app is complete I will add all of our layers here so that viewers can have a good understanding of what the tool represents before going on
-<br>
+<br> 
+**Our Boundary:**
+These boundaries form the region that contains the 22 block groups that we call Southwest Lansing. The tool is catered to this region and we have a Southwest Lansing button to reset in this region. The region is encapsulated within the four directional boundaries listed above. Data is not limited to this area, and data can be pulled from other areas in Lansing. When the tool loads, you will be centered on this region but can change the area of viewing through zoom/scroll controls. This boundary was defined by our Community Partner the CCED.
 
 # Code Requirements and Installation Instructions Link
 **Required Packages:**
