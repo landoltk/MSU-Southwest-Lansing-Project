@@ -96,7 +96,7 @@ const bgToNeighborhoods = new Map();
 //filter globals
 const filterLabels = {
     'food-filter': 'Food',
-    'housesize-filter': 'Household Ownership',
+    'housesize-filter': 'Household Size',
     'race-filter': 'Race',
     'population-filter': 'Population',
     'health-filter': 'Health',
@@ -187,7 +187,7 @@ async function loadHealthGeojson({ id, path, color }) {
         layout: { visibility: 'none' }
     });
 }
-
+//Links each block group ID to corresponding neighborhoods
 function buildBgToNeighborhoods() {
     Object.entries(neighborhoodToBgs).forEach(([neighborhood, ids]) => {
         ids.forEach(id => {
@@ -357,16 +357,6 @@ async function joinRaceToBgs(bgGeojson) {
     return bgGeojson;
 }
 
-//pulls feature collection from arcGIS by URL
-async function fetchArcgisRows(url) {
-    const r = await fetch(url);
-    const j = await r.json();
-    if (j.type === 'FeatureCollection') {
-        return (j.features || []).map(f => f.properties || {});
-    }
-    return (j.features || []).map(f => f.attributes || {});
-}
-
 //pull from txt file to get default BG selection
 async function fetchRequestedBgs() {
     const res = await fetch('static/data/requested_bg.txt', { cache: 'no-store' });
@@ -426,78 +416,6 @@ async function joinIncomeToBgs(bgGeojson) {
     return bgGeojson;
 }
 
-//attaches Household data to BG to make data pulls easier
-async function joinHouseholdToBgs(bgGeojson) {
-    const householdRows = await fetchCsvRows('static/data/household_ownership_data.csv');
-    
-
-    console.log('Household labels:',
-        householdRows.map(r => r['Label (Grouping)']).filter(Boolean)
-    );
-
-    const totalRow = householdRows.find(row => {
-        const label = String(row['Label (Grouping)'] || '').toLowerCase();
-        return label.includes('average household size') &&
-            label.includes('occupied housing units') &&
-            !label.includes('owner-occupied') &&
-            !label.includes('renter-occupied');
-    });
-
-    const ownerRow = householdRows.find(row => {
-        const label = String(row['Label (Grouping)'] || '').toLowerCase();
-        return label.includes('average household size') &&
-            label.includes('owner-occupied');
-    });
-
-    const renterRow = householdRows.find(row => {
-        const label = String(row['Label (Grouping)'] || '').toLowerCase();
-        return label.includes('average household size') &&
-            label.includes('renter-occupied');
-    });
-
-    console.log('Matched household rows:', {
-        total: totalRow?.['Label (Grouping)'],
-        owner: ownerRow?.['Label (Grouping)'],
-        renter: renterRow?.['Label (Grouping)']
-    });
-
-    for (const f of (bgGeojson.features || [])) {
-        const p = f.properties || {};
-        const joinKey = p.JOINKEY12 || key12FromLink(p.LINK);
-
-        const countyCode = joinKey.slice(2, 5);
-        const tract6 = joinKey.slice(5, 11);
-        const bg = joinKey.slice(11);
-
-        const countyMap = {
-            '065': 'Ingham',
-            '045': 'Eaton',
-            '037': 'Clinton'
-        };
-
-        const countyName = countyMap[countyCode];
-        if (!countyName) continue;
-
-        const tractNum = `${parseInt(tract6.slice(0, 4), 10)}.${tract6.slice(4)}`.replace(/\.00$/, '');
-
-        const estimateCol =
-            `Block Group ${bg}; Census Tract ${tractNum}; ${countyName} County; Michigan!!Estimate`;
-
-        const numOrNull = row => {
-            const raw = String(row?.[estimateCol] ?? '').replace(/,/g, '').trim();
-            if (!raw || raw === '(X)' || raw === 'N' || raw === '-') return null;
-            const val = Number(raw);
-            return Number.isFinite(val) ? val : null;
-        };
-
-        p.household_total = numOrNull(totalRow);
-        p.household_owner = numOrNull(ownerRow);
-        p.household_renter = numOrNull(renterRow);
-    }
-
-    return bgGeojson;
-}
-
 //helper function for BG data joins to pull data from csvs
 async function fetchCsvRows(url) {
     const res = await fetch(url, { cache: 'no-store' });
@@ -516,6 +434,7 @@ async function fetchCsvRows(url) {
         return obj;
     });
 }
+//Returns all block groups corresponded with one neighbhorhood. How we grab three block groups for one neighborhood
 function getNeighborhoodFeatures(name) {
     const ids = (neighborhoodToBgs[name] || []).map(String);
 
@@ -523,7 +442,7 @@ function getNeighborhoodFeatures(name) {
         f => ids.includes(String(f.properties?.JOINKEY12))
     );
 }
-
+//Builds the data box for neighborhoods built around the neighborhood names.
 function buildNeighborhoodTable(config) {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -650,15 +569,6 @@ function parseCsvLine(line) {
     return out;
 }
 
-//bg label breakdown helper function
-function parseBgLabel(name) {
-    const s = String(name ?? '');
-    if (!s.length) return { tract: s, bg: s };
-    return {
-        tract: s.slice(5, -1),
-        bg: s.slice(-1)
-    };
-}
 
 //table and map highlighting for mouse actions
 function attachDataRowInteractions() {
@@ -740,7 +650,6 @@ function renderSelectedList() {
 function getDisplayMode() {
     if (document.getElementById('radius-display')?.checked) return 'radius';
     if (document.getElementById('neighborhoods-display')?.checked) return 'neighborhoods';
-    if (document.getElementById('zipcodes-display')?.checked) return 'zipcodes';
     if (document.getElementById('block-display')?.checked) return 'block';
     return 'swl';
 }
@@ -874,7 +783,7 @@ function syncBlockSelectedFill() {
         ['literal', [...selectedBlockIds]]
     ]);
 }
-
+// highlights block groups corresponding with neighborhoods
 function syncNeighborhoodBaseFill() {
     const neighborhoodIds = [...new Set(
         Object.values(neighborhoodToBgs).flat().map(String)
@@ -886,6 +795,7 @@ function syncNeighborhoodBaseFill() {
         ['literal', neighborhoodIds]
     ]);
 }
+// Clears all neighborhood highlighting from the map
 function clearNeighborhoodBaseFill() {
     map.setFilter('neighborhood-base-fill', [
         'in',
@@ -1058,7 +968,7 @@ function buildPopulationBox() {
     attachDataRowInteractions();
     updateTableAndMapHighlight();
 }
-
+//For building the data box for the Race filter
 function buildRaceBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -1309,6 +1219,7 @@ function buildRaceBox() {
     attachDataRowInteractions();
     updateTableAndMapHighlight();
 }
+// Builds and attaches the income data box to display for the block groups
 function buildIncomeBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -1536,7 +1447,7 @@ function buildHouseholdBox() {
 
     box.style.display = 'none';
 }
-
+//Builds the neighborhood box from the population attached at the block level
 function buildNeighborhoodPopulationBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -1597,7 +1508,7 @@ function buildNeighborhoodPopulationBox() {
     attachDataRowInteractions();
     updateTableAndMapHighlight();
 }
-
+// Builds and displays the food source legend in the data box
 function buildFoodBox(){
     const box = document.getElementById('data-box')
     const content = document.getElementById('data-box-content')
@@ -1636,7 +1547,7 @@ function buildFoodBox(){
     </div>`
     box.style.display = 'block'
 }
-
+// Builds and displays the health source legend in the data box
 function buildHealthBox() {
     const box = document.getElementById('data-box');
     const content = document.getElementById('data-box-content');
@@ -1673,13 +1584,14 @@ function buildHealthBox() {
     `;
     box.style.display = 'block';
 }
-
+// Builds a placeholder data box for filters that are not yet implemented, nice for future works
 function buildPlaceholderBox(label){
     const box = document.getElementById('data-box')
     const content = document.getElementById('data-box-content')
     content.innerHTML = `<h4>${label}</h4><p>Data coming soon.</p>`
     box.style.display = 'block'
 }
+// Initializes the neighborhood state, drops all other block groups and highlights those included in neighborhoods.
 function selectAllNeighborhoods() {
     selectionModeBG = 'neighborhood';
 
@@ -1710,8 +1622,8 @@ function selectAllNeighborhoods() {
     document.getElementById('details').textContent =
         'Click a light blue neighborhood block group to select its neighborhood(s).';
 }
+// Enters a fresh neighborhood state, this is so you can be at any level or on any button and clicking this sends you to default neighborhoods
 async function enterNeighborhoodModeFresh() {
-    // wipe all prior selection state
     activeId = null;
     hoveredTableId = null;
     pinnedTableId = null;
@@ -1726,7 +1638,6 @@ async function enterNeighborhoodModeFresh() {
     deselectedBlockIds.clear();
     lastSubmittedIds = [];
 
-    // clear visual filters
     map.setFilter('default-selected-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
     map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
     map.setFilter('neighborhood-base-fill', ['in', ['get', 'JOINKEY12'], ['literal', []]]);
@@ -1734,7 +1645,6 @@ async function enterNeighborhoodModeFresh() {
     map.setFilter('block-deselected', ['in', ['get', 'GEOID20'], ['literal', []]]);
     map.setFilter('active-block-highlight', ['==', ['get', 'GEOID20'], '___none___']);
 
-    // clear loaded blocks source
     if (map.getSource('blocks')) {
         map.getSource('blocks').setData({
             type: 'FeatureCollection',
@@ -1745,13 +1655,12 @@ async function enterNeighborhoodModeFresh() {
     clearRadiusCircle();
     document.getElementById('data-box').style.display = 'none';
 
-    // reset mode back to starting line first
     selectionModeBG = 'block';
     await setSelectionMode(SelectionMode.BG_SELECT);
 
-    // now enter neighborhood mode cleanly
     selectAllNeighborhoods();
 }
+//Like the neighborhood fresh function, this allows you to be on any level and selecting Radius will always take you to default radius mode
 async function enterRadiusModeFresh() {
     activeId = null;
     hoveredTableId = null;
@@ -1790,6 +1699,7 @@ async function enterRadiusModeFresh() {
     document.getElementById('details').textContent =
         'Radius mode: click anywhere on the map to select block groups within the radius.';
 }
+// Allows clean exit from neighborhood while restoring default block group selection logic
 function exitNeighborhoodMode() {
     selectionModeBG = 'block';
 
@@ -1837,7 +1747,7 @@ function exitNeighborhoodMode() {
     document.getElementById('data-box').style.display = 'none';
     document.getElementById('details').textContent = 'Click a polygon to view details.';
 }
-
+// Highlights all block groups associated with a given neighborhood name
 function highlightNeighborhood(name) {
     if (!name) {
         map.setFilter('active-bg-highlight', ['==', 'JOINKEY12', '___none___']);
@@ -1855,10 +1765,12 @@ function highlightNeighborhood(name) {
     document.getElementById('details').textContent =
         `${name}: ${ids.length} block group(s) highlighted.`;
 }
+// Updates the highlight so the previous highlight will disappear when a new one is selected
 function updateNeighborhoodHighlight() {
     const name = hoveredNeighborhoodName || pinnedNeighborhoodName || null;
     highlightNeighborhood(name);
 }
+//Selection logic for neighborhood block groups.
 function selectNeighborhoodsFromBg(bgId) {
     const id = String(bgId);
     const neighborhoods = bgToNeighborhoods.get(id) || [];
@@ -1902,6 +1814,7 @@ function selectNeighborhoodsFromBg(bgId) {
     document.getElementById('details').textContent =
         `${selectedNeighborhoods.size} neighborhood(s) selected.`;
 }
+// How to highlight the neighborhoods in the data box to show on the map
 function highlightNeighborhoodRow(name) {
     const rows = document.querySelectorAll('#data-box tbody tr[data-name]');
 
@@ -1949,7 +1862,7 @@ function updateTableAndMapHighlight() {
         rows.forEach(tr => tr.classList.remove('row-active'));
     }
 }
-
+//Combines table highlighting with highlighting the said block groups on the map
 function updateNeighborhoodTableAndMapHighlight() {
     const name = pinnedNeighborhoodName || hoveredNeighborhoodName || null;
 
@@ -1965,6 +1878,7 @@ function updateNeighborhoodTableAndMapHighlight() {
         });
     }
 }
+//Pulls the population for each block group corresponding with the neighborhoods
 function getNeighborhoodPopulation(neighborhoodName) {
     const ids = neighborhoodToBgs[neighborhoodName] || [];
 
@@ -2415,7 +2329,7 @@ function filterHealthPointsToSelectedBlocks() {
         });
     }
 }
-
+// MAP CLICK AND HOVER EVENTS
 map.on('click', 'neighborhood-base-fill', e => {
     if (selectionMode !== SelectionMode.BG_SELECT) return;
     if (selectionModeBG !== 'neighborhood') return;
@@ -3298,7 +3212,6 @@ displayCheckboxes.forEach(cb => {
 });
 
 const radiusCheckbox = document.getElementById('radius-display');
-const zipcodesCheckbox = document.getElementById('zipcodes-display');
 const blockCheckbox = document.getElementById('block-display');
 
 if (radiusCheckbox) {
@@ -3310,13 +3223,6 @@ if (radiusCheckbox) {
             document.getElementById('details').textContent = 'Click a polygon to view details.';
         }
 
-        updateDisplayMethodUI();
-    });
-}
-
-if (zipcodesCheckbox) {
-    zipcodesCheckbox.addEventListener('change', () => {
-        clearRadiusCircle();
         updateDisplayMethodUI();
     });
 }

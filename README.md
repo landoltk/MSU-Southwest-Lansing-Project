@@ -3,13 +3,18 @@ CMSE495 Spring 2026 Capstone
 Group Members: Mason Lee, Kyle Landolt, Vibu Darshan, Will McNeilly
 <br>
 <br>
-This course is a semester long project where you collaborate with an organization. Our community partner is the CCED (Center for Community and Economic Development) and our purpose is to build an open-source tool that can present community data about Southwest Lansing in a user-friendly and understandable way. Our goal is to demonstrate this tool in a way that is comprehensible for non-data scientists. We are exhilarated to be working with the CCED and can't wait for the tool that we will produce.
+This course is a semester long project where you collaborate with an organization. Our community partner is the CCED (Center for Community and Economic Development) and our purpose is to build an open-source tool that can present community data about Southwest Lansing in a user-friendly and understandable way. Our goal was to demonstrate this tool in a way that is comprehensible for non-data scientists. We are exhilarated to have taken part in this project and we are super intrigued to see what future capstone teams could add.
 <br>
 <br>
 MVP Video Link
 <br>
 <br>
 https://michiganstate.sharepoint.com/:v:/s/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/IQAHOiGqXb7DTLhUoLPM53q5ASNbF7zFKoUlcDQwD6v0tZI?e=KzlmKz&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D
+<br>
+**Official App Link:**
+<br>
+<br>
+https://msu-southwest-lansing-project.onrender.com/
 <br>
 # Folder Location and Repository Rules:
 
@@ -63,30 +68,22 @@ pathlib==1.0.1
 
 **Initial app overview:**
 To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
-
-**Current Working Filters:**
-
+<br>
 **1. Filters:**
 
-Working!
-- Food: Displays community gardens in the immediate area
-- Population: Population data is connected and shown through submission
-  
-Waiting to implement
-- Health
-- Income
-- Race
-- Household descriptions
+**Working!**
+- **Food:** Displays community gardens in the immediate area  
+- **Population:** Population data is connected and shown through submission  
+- **Health:** Displays health clinics and other health related establishments in the selected region  
+- **Income:** Displays median household income per block group  
+- **Race:** Displays amount of people per race in selected block groups  
+- **Household descriptions:** Displays household-related descriptions for selected block groups
 
 **2. Data Viewing Methods:**
 
-Working!
-- Southwest Lansing: Clicking this immediately highlights all of Southwest Lansing's block groups
-  
-Waiting to implement:
-- Zip code data
-- Radius (Drawing a circle and having the block groups inside of the circle being selected)
-- Neighborhood data
+- **Southwest Lansing:** Clicking this immediately highlights all of Southwest Lansing's block groups
+- **Radius** Select a radius in miles and then click anywhere on the map and any block group in that radius will be included
+- **Neighborhood data** Southwest Lansing Neighborhoods will show up light blue. Click any of those areas and the block groups associated with that neighborhood will all be highlighted.
   
 # Reproducing Layer 1: Block Groups
 
@@ -94,31 +91,42 @@ Waiting to implement:
 
 - **Green**: Not selected, will not be included in data  
 - **Blue**: Fully selected, will always be included in data  
-- **Bright Yellow**: Deselected, removed from selection and excluded from data  
-- **Dim Yellow**: Selected and highlighted in presented data
+- **Yellow:** Selected and highlighted in displayed data, if it was clicked that will mean it was the most recent deselection
   
+# Reproducing Layer 2: Block Levels
+
+**Block Level Color Meaning:**
+- **Dark Orange:** Upon submission, users are able to refine their selected area to a finer block level. Dark orange represents the currently selected block levels.
+- **Light Orange:** When block levels are deselected, they turn light orange, indicating they can still be re-added later.
+- **Light Green:** After modifying block levels and submitting again, the selection becomes locked. At this point, selected block levels turn light green and all deselected ones are removed.
+
+
+# Reproducing The App: How to view the data:
+
+As mentioned in the overview, the 22 block groups representing Southwest Lansing start selected. However, you will notice that the "Show data" tab is still grayed out on the right-hand side. In order to view the data, you must have a selected block group and click the "Submit Selection" button. This will bring you down to our second stage in Layer 2 of the Block Levels. When you have made your modifications there, click submit selection one more time.
+
+After the second "Submit selection" was selected, the block levels will turn green and the "Show data" button will highlight blue. Open the filters drawer and select your filter of choice, then click "Show Data". After clicking this, a data table will drop below There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
+
+**Data Cleanup and Other Useful Tools**
+- **Unselect All:**
+This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect. This button is replaced with an "Edit Selection" button once selection has been submitted which will revert the app to selection mode.
+
+- **Zoom Features:**
+Above the "About the Team" bar, there is a bar with a "+", a "-", and a compass marker. The plus sign will zoom you in, while the minus sign will zoom you out. The compass marker, is supposed to be clicked and held as it rotates the map. The user can click and hold to rotate the map freely.
+
+
+- **Reset to Last Selection**  
+Reset to last selection works only in the block group stage. When clicked, the selection will reset to the most recent block group submission that was sent in. This is nice if you accidentally unselect or want to compare two areas very quickly.
+
+- **Submit Selection / Show Data**  
+This button is entirely involved in displaying the data. You must hit Submit Selection until the block group selection is locked and green. Then you can click your filter and the show data button will highlight blue. This means you can now select and view your data.
+
 **Drawer Descriptions:**
 - **Filters:**
 A pretty simple, yet vitally important drawer to the project. To be mentioned below, no data can be shown without a filter present. The data is in checkbox form, but only one can be selected at a time. When this one is selected, you can check the main bar to see "Selected filter: blank" so that you don't have to open the filters tab to always see your active filter.
 
 - **About the Team:**
 This is where we present our Thanks to the Community for Center and Economic Development. It is a great tab to give credit to those who made the project possible: the Southwest Lansing team and the CCED. Roles, Majors, and Contact Information of the team members can be found here
-
-**How to view the data:**
-As mentioned in the overview, the 22 block groups representing Southwest Lansing start selected. However, you will notice that the "Show data" tab is still grayed out on the right-hand side. In order to view the data, you must have a selected block group and click the "Submit Selection" button. This activates the filters in the "Filters" drawer which can then be selected which activates the "Show data" button. Once the filter of your choice is selected, the "Show data" button can be clicked which will display any relevant data available.
-
-After "Submit selection" was selected, the "Show data" button will highlight blue. After clicking this, a data table will drop below There will be an "X" in the top right that you can click at any time to remove the data table. The old table will be displayed until the X is clicked or a new set of data is being submitted.
-
-**Data Cleanup and Other Useful Tools**
-- **Unselect All:**
-This button will remove all of the currently selected groups. If you are ever overwhelmed or can't get rid of block groups easily, click this button and they will all deselect. This button is replaced with an "Edit Selection" button once selection has been submitted which will revert the app to selection mode.
-
-- **Block Group Hyperlinks:**
-These links when clicked will highlight that block group on the graph. The selected block groups only appear in this list, so each hyperlink corresponds to a blue selected block group. The color of the block is Dim Yellow, and this does not select or deselect anything, the block group will appear in the data.
-
-- **Zoom Features:**
-Above the "About the Team" bar, there is a bar with a "+", a "-", and a compass marker. The plus sign will zoom you in, while the minus sign will zoom you out. The compass marker, is supposed to be clicked and held as it rotates the map. The user can click and hold to rotate the map freely.
-
 
 # Contact the Creators
 **2026 Spring Southwest Lansing Team:**

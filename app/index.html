@@ -56,38 +56,23 @@ rel="stylesheet">
                         button in the <strong>"Choose your data display method:"</strong> section to reselect all 22 block groups.
                     </p>
                 
-                    <hr class="section-divider">
-                
-                    <h3>Current Working Features</h3>
-                
+                    <hr class="section-divider">          
                     <h4>Filters</h4>
-                    <p><strong>Working:</strong></p>
                     <ul>
                         <li><strong>Food:</strong> Displays community gardens in the immediate area</li>
                         <li><strong>Population:</strong> Displays population data after submission</li>
                         <li><strong>Income:</strong> Displays median household income per block group</li>
                         <li><strong>Race:</strong> Displays amount of people per race in selected block groups.</li>
                         <li><strong>Household Size:</strong> Displays average people per household in owned and rented properties</li>
-                    </ul>
-                
-                    <p><strong>In Progress:</strong></p>
-                    <ul>
-                        <li>Health</li>
+                        <li><strong>Health:</strong> Displays health clinics and other health related establishments in the selected region.</li>
                     </ul>
                 
                     <h4>Data Viewing Methods</h4>
-                    <p><strong>Working:</strong></p>
                     <ul>
                         <li><strong>Southwest Lansing:</strong> Automatically selects all Southwest Lansing block groups</li>
                         <li><strong>Radius selection:</strong> Select a radius in miles and click on the map, intersecting block groups will be selected.</li>
-                        <li><strong>Neighborhood-based selection:</strong> All Southwest Lansing neighborhood zones are outlined in white, select a white block group and any associated block groups with that neighborhood will be selected.</li>
+                        <li><strong>Neighborhood-based selection:</strong> All Southwest Lansing neighborhood zones are outlined in light blue, select a light blue block group and any associated block groups with that neighborhood will be selected.</li>
                         
-                    </ul>
-                 
-                
-                    <p><strong>In Progress:</strong></p>
-                    <ul>
-                        <li>None</li>
                     </ul>
                 
                     <hr class="section-divider">
@@ -96,15 +81,16 @@ rel="stylesheet">
                     <ul>
                         <li><strong>Green:</strong> Not selected, excluded from data</li>
                         <li><strong>Blue:</strong> Fully selected, included in data</li>
-                        <li><strong>Bright Yellow:</strong> Deselected and removed from selection</li>
-                        <li><strong>Dim Yellow:</strong> Selected and highlighted in displayed data</li>
+                        <li><strong>Yellow:</strong> Selected and highlighted in displayed data, if it was clickedm that will mean it was the most recent deselection</li>
                     </ul>
                 
                     <hr class="section-divider">
                 
                     <h3>Layer 2: Block Level</h3>
                     <ul>
-                        <li><strong>Orange:</strong> Upon submission, users will be granted the access to change their selected area to a finer level of block level data. They can remove unwanted areas to achieve a more particular selection. </li>
+                        <li><strong>Dark Orange:</strong> Upon submission, users will be granted the access to change their selected area to a finer level of block level data. Dark Orange correlates to the selected block levels in the area</li>
+                        <li><strong>Light Orange:</strong> Upon deselection, the deselected block levels will turn light orange inidicating that they can still be added later on if the user chooses.</li>
+                        <li><strong>Light Green:</strong> After modifying the block levels, submitting one more time will lock the submission. When the submission is locked, the block levels will turn light green and all deselected ones will be dropped</li>
                     </ul>
                 
                     <hr class="section-divider">
@@ -136,7 +122,7 @@ rel="stylesheet">
                 
                     <p>
                         A data table will appear below the button. You can close it anytime using the
-                        <strong>"X"</strong> in the top right. The table stays until closed or replaced.
+                        <strong>"X"</strong> in the top right. The table stays until closed or replaced. Explore with our tools below to create your own special findings.
                     </p>
                 
                     <hr class="section-divider">
@@ -148,13 +134,15 @@ rel="stylesheet">
                         Edit Selection, allowing you to modify your selection.
                     </p>
                 
-                    <p><strong>Block Group Hyperlinks:</strong><br>
-                        Displays selected groups only. Clicking highlights them in dim yellow without changing selection.
-                    </p>
-                
                     <p><strong>Zoom Controls:</strong><br>
                         + zooms in, – zooms out, and the compass allows rotation when clicked and dragged.
                     </p>
+                    <p><strong> Reset to Last Selection</strong> <br>
+                        Reset to last selection works only in the block group stage. When clicked, the selection will reset to the most recent block group submission that was sent in. This is nice if you accidentally unselect or want to compare two areas very quickly.
+                    </p>
+                    <p><strong> Submit Selection/Show Data</strong> <br>
+                           This button is entirely involved in displaying the data. You must hit Submit Selection until the block group selection is locked and green. Then you can click your filter and the show data button will highlight blue. This means you can now select and view your data.
+                        </p>
                 
                 </div>
             </div>
