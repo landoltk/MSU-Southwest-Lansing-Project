@@ -6,17 +6,15 @@ Group Members: Mason Lee, Kyle Landolt, Vibu Darshan, Will McNeilly
 This course is a semester long project where you collaborate with an organization. Our community partner is the CCED (Center for Community and Economic Development) and our purpose is to build an open-source tool that can present community data about Southwest Lansing in a user-friendly and understandable way. Our goal was to demonstrate this tool in a way that is comprehensible for non-data scientists. We are exhilarated to have taken part in this project and we are super intrigued to see what future capstone teams could add.
 <br>
 <br>
-**Final Project Video Link:**
-<br>
-<br>
-- https://michiganstate.sharepoint.com/:v:/r/sites/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/Shared%20Documents/MSU-SW_Lansing/Project_Deliverables/MSU_SWL_Final_Video.mp4?csf=1&web=1&e=qLxefA
-<br>
-**Official App Link:**
-<br>
-<br>
-- https://msu-southwest-lansing-project.onrender.com/
-<br>
-# Folder Location and Repository Rules:
+## Final Project Video Link
+
+[Watch the Final Project Video](https://michiganstate.sharepoint.com/:v:/r/sites/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/Shared%20Documents/MSU-SW_Lansing/Project_Deliverables/MSU_SWL_Final_Video.mp4?csf=1&web=1&e=qLxefA)
+
+## Official App Link
+
+[Open the Southwest Lansing App](https://msu-southwest-lansing-project.onrender.com/)
+
+## Folder Location and Repository Rules
 
 Our data is located inside the "app" folder and you will find an excel sheet with all of our data organized and documented. Any data that is used to add future layers needs to be recorded and filed into the same organization outlined in the document.
 <br>
@@ -67,7 +65,7 @@ pathlib==1.0.1
 
 **Initial app overview:**
 <br>
-= To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
+- To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
 <br>
 **1. Filters:**
 
