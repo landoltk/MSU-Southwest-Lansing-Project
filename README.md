@@ -8,11 +8,13 @@ This course is a semester long project where you collaborate with an organizatio
 <br>
 **Final Project Video Link:**
 <br>
-https://michiganstate.sharepoint.com/:v:/r/sites/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/Shared%20Documents/MSU-SW_Lansing/Project_Deliverables/MSU_SWL_Final_Video.mp4?csf=1&web=1&e=qLxefA
+<br>
+- https://michiganstate.sharepoint.com/:v:/r/sites/Section_SS26-CMSE-495-001-226213802-EL-32-A26-MSU-SW_Lansing/Shared%20Documents/MSU-SW_Lansing/Project_Deliverables/MSU_SWL_Final_Video.mp4?csf=1&web=1&e=qLxefA
+<br>
 **Official App Link:**
 <br>
 <br>
-https://msu-southwest-lansing-project.onrender.com/
+- https://msu-southwest-lansing-project.onrender.com/
 <br>
 # Folder Location and Repository Rules:
 
@@ -41,7 +43,8 @@ Southern Boundary - I-96 boundary
 <br>
 <br> 
 **Our Boundary:**
-These boundaries form the region that contains the 22 block groups that we call Southwest Lansing. The tool is catered to this region and we have a Southwest Lansing button to reset in this region. The region is encapsulated within the four directional boundaries listed above. Data is not limited to this area, and data can be pulled from other areas in Lansing. When the tool loads, you will be centered on this region but can change the area of viewing through zoom/scroll controls. This boundary was defined by our Community Partner the CCED.
+<br>
+- These boundaries form the region that contains the 22 block groups that we call Southwest Lansing. The tool is catered to this region and we have a Southwest Lansing button to reset in this region. The region is encapsulated within the four directional boundaries listed above. Data is not limited to this area, and data can be pulled from other areas in Lansing. When the tool loads, you will be centered on this region but can change the area of viewing through zoom/scroll controls. This boundary was defined by our Community Partner the CCED.
 
 # Code Requirements and Installation Instructions Link
 **Required Packages:**
@@ -63,7 +66,8 @@ pathlib==1.0.1
 # App Reproducibility
 
 **Initial app overview:**
-To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
+<br>
+= To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
 <br>
 **1. Filters:**
 
