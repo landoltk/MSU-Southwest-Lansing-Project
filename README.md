@@ -66,7 +66,7 @@ pathlib==1.0.1
 **Initial app overview:**
 <br>
 - To open the app, you can access it through the "Official App Link" here https://msu-southwest-lansing-project.onrender.com/. When you open the app, you will be met with an overview of Lansing that is covered in green block groups. When the app loads, the Southwest Lansing block groups will be highlighted in blue, which means that they are selected. You can press the "Southwest Lansing" button in the "Choose your data display method:" area and that will re-select all 22 of Southwest Lansing's groups.
-<br>
+
 **1. Filters:**
 
 **Working!**
